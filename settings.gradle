@@ -1,1 +1,3 @@
 rootProject.name = 'http-raw-log'
+include 'core'
+include 'test'

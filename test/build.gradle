@@ -1,0 +1,13 @@
+dependencies {
+    def v = "2.3.7.RELEASE"
+    try {
+        v = java.util.Optional.ofNullable(springBootVersion).orElse(v)
+    } catch (MissingPropertyException e) {
+    }
+    println("springBootVersion = ${v}")
+
+    implementation "org.springframework.boot:spring-boot-starter-web:${v}"
+    testCompile "org.springframework.boot:spring-boot-starter-test:${v}"
+
+    compile project(':core')
+}

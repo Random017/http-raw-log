@@ -1,0 +1,60 @@
+apply plugin: 'maven-publish'
+
+dependencies {
+    def v = "2.3.7.RELEASE"
+    try {
+        v = java.util.Optional.ofNullable(springBootVersion).orElse(v)
+    } catch (MissingPropertyException e) {}
+    compileOnly "org.springframework.boot:spring-boot-starter-web:${v}"
+}
+
+def coreVersion = '0.1-SNAPSHOT'
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId project.group
+            artifactId "http-raw-log"
+            version coreVersion
+            from components.java
+
+            pom {
+                name = 'My Library'
+                description = 'Skycong 工具包'
+                url = 'http://www.example.com/library'
+                properties = [
+                        myProp          : "value",
+                        "prop.with.dots": "anotherValue"
+                ]
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'rmc'
+                        name = 'rmc'
+                        email = 'mc@skycong.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://example.com/my-library.git'
+                    developerConnection = 'scm:git:ssh://example.com/my-library.git'
+                    url = 'http://example.com/my-library/'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            url project.version.endsWith("-SNAPSHOT") ? nexusSnapshotUrl : nexusReleaseUrl
+            credentials {
+                username username1
+                password password1
+            }
+        }
+    }
+}

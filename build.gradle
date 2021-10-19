@@ -1,25 +1,41 @@
-plugins {
-    id 'org.springframework.boot' version '2.3.7.RELEASE'
-    id 'io.spring.dependency-management' version '1.0.10.RELEASE'
-    id 'java'
-}
-
-group = 'com.skycong'
-version = '0.1-SNAPSHOT'
-sourceCompatibility = '1.8'
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    testImplementation('org.springframework.boot:spring-boot-starter-test') {
-        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+buildscript {
+    ext {
+        nexusUrl = 'https://maven.aliyun.com/repository/public'
+        mavenRepositoryDomain = 'https://packages.aliyun.com'
+        nexusSnapshotUrl = "${mavenRepositoryDomain}/maven/repository/2028373-snapshot-K0SzDr/"
+        nexusReleaseUrl = "${mavenRepositoryDomain}/maven/repository/2028373-release-ksq24F/"
+        username1 = System.getProperty("muser")
+        password1 = System.getProperty("mpass")
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
-    testImplementation 'junit:junit'
 }
 
-test {
-    useJUnitPlatform()
+allprojects {
+    group = 'com.skycong'
+    version = '0.1-SNAPSHOT'
+}
+
+subprojects {
+    apply plugin: 'java-library'
+
+    repositories {
+        maven { url nexusUrl }
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = "UTF-8"
+    }
+
+    java {
+//        withJavadocJar()
+        withSourcesJar()
+    }
+
+    javadoc {
+        options.encoding = "UTF-8"
+        if (JavaVersion.current().isJava9Compatible()) {
+            options.addBooleanOption('html5', true)
+        }
+    }
 }
