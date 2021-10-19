@@ -19,12 +19,11 @@ publishing {
             from components.java
 
             pom {
-                name = 'My Library'
-                description = 'Skycong 工具包'
-                url = 'http://www.example.com/library'
+                name = 'skycong http raw log kit'
+                description = 'print http raw log'
+                url = 'https://gitee.com/randomsky/http-raw-log'
                 properties = [
-                        myProp          : "value",
-                        "prop.with.dots": "anotherValue"
+                        springBootVersion : "2.3.7.RELEASE"
                 ]
                 licenses {
                     license {
@@ -40,9 +39,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection = 'scm:git:git://example.com/my-library.git'
-                    developerConnection = 'scm:git:ssh://example.com/my-library.git'
-                    url = 'http://example.com/my-library/'
+                    connection = 'scm:git:https://gitee.com/randomsky/http-raw-log'
+                    developerConnection = 'scm:git:https://gitee.com/randomsky/http-raw-log.git'
+                    url = 'https://gitee.com/randomsky/http-raw-log'
                 }
             }
         }
