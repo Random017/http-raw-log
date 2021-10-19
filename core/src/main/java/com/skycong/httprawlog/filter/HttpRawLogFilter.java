@@ -79,7 +79,7 @@ public class HttpRawLogFilter implements Filter {
 
     private void printLog(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
 
-        String sessionId, method, requestURL, requestHeaders, queryString, requestBody = null, responseBody;
+        String sessionId, method, requestURL, requestHeaders, queryString, requestBody = null, responseBody, httpStatus;
         sessionId = request.getSession().getId();
         method = request.getMethod();
         requestURL = request.getRequestURI();
@@ -119,6 +119,7 @@ public class HttpRawLogFilter implements Filter {
         // 将response steam 重新写入返回
         byte[] bytes = myResponseWrapper.getByteArrayOutputStream();
         response.getOutputStream().write(bytes);
+        response.getOutputStream().flush();
 
         // 排除resp 的流
         String responseWrapperContentType = myResponseWrapper.getContentType();
@@ -129,6 +130,7 @@ public class HttpRawLogFilter implements Filter {
         } else {
             responseBody = new String(bytes);
         }
+        httpStatus = String.valueOf(myResponseWrapper.getStatus());
 
         String requestLog = "";
         if (!queryString.isEmpty()) {
@@ -144,7 +146,7 @@ public class HttpRawLogFilter implements Filter {
                 "\n[url]:" + method + "\t" + requestURL +
                 "\n[headers]:" + requestHeaders +
                 "\n[request data]:\t" + requestLog +
-                "\n[response data]:\t" + responseBody + "\n\n";
+                "\n[response data]:httpStatus=" + httpStatus + "\t" + responseBody + "\n";
         LOGGER.debug(sb);
     }
 
