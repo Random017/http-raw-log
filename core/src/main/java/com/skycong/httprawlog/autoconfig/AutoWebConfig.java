@@ -17,6 +17,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
+ * 自动装配 HttpRawLogFilter ，预处理配置参数
+ *
  * @author ruanmingcong 2020/4/5 11:27
  */
 @Configuration
