@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 /**
  * 控制台打印日志示例：
  * <p>
- * --------------> http raw data sessionId:	8C6A1D4433A10BFED5D64516939904E5
+ * -------------- http raw data sessionId:	8C6A1D4433A10BFED5D64516939904E5
  * [url]:POST	/test/upload/p
  * [headers]:{host=localhost:8943, referer=null, content-type=null, cookie=JSESSIONID=1E60F913C20FFB23354FC404C86759F3, accept-language=null, user-agent=PostmanRuntime/7.28.4}
  * [request data]:	#query string# a=[b], c=[d], e[0]=[0], e[1]=[1],
