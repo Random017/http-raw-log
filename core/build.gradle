@@ -20,7 +20,7 @@ publishing {
 
             pom {
                 name = 'skycong http raw log kit'
-                description = 'print http raw log'
+                description = ' print http raw log'
                 url = 'https://gitee.com/randomsky/http-raw-log'
                 properties = [
                         springBootVersion : "2.3.7.RELEASE"
