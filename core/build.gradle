@@ -1,20 +1,24 @@
 apply plugin: 'maven-publish'
+apply plugin: 'signing'
 
 dependencies {
     def v = "2.3.7.RELEASE"
     try {
         v = java.util.Optional.ofNullable(springBootVersion).orElse(v)
-    } catch (MissingPropertyException e) {}
+    } catch (MissingPropertyException e) {
+    }
     compileOnly "org.springframework.boot:spring-boot-starter-web:${v}"
 }
 
-def coreVersion = '0.1-SNAPSHOT'
+def coreVersion = '0.1'
+def coreArtifactId = "http-raw-log"
+
 
 publishing {
     publications {
         mavenJava(MavenPublication) {
             groupId project.group
-            artifactId "http-raw-log"
+            artifactId coreArtifactId
             version coreVersion
             from components.java
 
@@ -23,7 +27,7 @@ publishing {
                 description = ' print http raw log'
                 url = 'https://gitee.com/randomsky/http-raw-log'
                 properties = [
-                        springBootVersion : "2.3.7.RELEASE"
+                        springBootVersion: "2.3.7.RELEASE"
                 ]
                 licenses {
                     license {
@@ -49,11 +53,25 @@ publishing {
 
     repositories {
         maven {
-            url project.version.endsWith("-SNAPSHOT") ? nexusSnapshotUrl : nexusReleaseUrl
+//            url project.version.endsWith("-SNAPSHOT") ? nexusSnapshotUrl : nexusReleaseUrl
+            if (coreVersion.endsWith("-SNAPSHOT")) {
+                url "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            } else {
+                url "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            }
             credentials {
-                username username1
-                password password1
+                username oss_user
+                password oss_pass
             }
         }
     }
 }
+
+signing {
+    sign publishing.publications.mavenJava
+}
+def  isReleaseVersion(version){
+    return !version.endsWith("-SNAPSHOT")
+}
+
+// 官方配置： https://central.sonatype.org/publish/publish-gradle/

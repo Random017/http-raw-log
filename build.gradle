@@ -6,6 +6,8 @@ buildscript {
         nexusReleaseUrl = "${mavenRepositoryDomain}/maven/repository/2028373-release-ksq24F/"
         username1 = System.getProperty("muser")
         password1 = System.getProperty("mpass")
+        oss_user = System.getProperty("oss_user")
+        oss_pass = System.getProperty("oss_pass")
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
