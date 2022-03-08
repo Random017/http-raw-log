@@ -13,12 +13,12 @@
   <dependency>
     <groupId>com.skycong</groupId>
     <artifactId>http-raw-log</artifactId>
-    <version>0.1</version>
+    <version>0.2</version>
   </dependency>
   
   #gradle#
   dependencies {
-    compile 'com.skycong:http-raw-log:0.1'
+    compile 'com.skycong:http-raw-log:0.2'
   }
   
   ```
@@ -33,6 +33,7 @@
   # 拦截打印的url正则，参考 Filter UrlPatterns 格式，多个URL时使用‘,’ 分隔，默认 /*
   com.skycong.http-raw.log.urls=/*
   # 需要打印http-raw-log的请求头key，多个使用‘,’ 分隔，默认 content-type
+  # 需要打印http-raw-log的响应头key，当且仅当不为空时才打印，多个使用‘,’ 分隔，默认 content-type
   com.skycong.http-raw.log.headers=content-type,cookie,host,accept-language,referer,user-agent
   ```
 

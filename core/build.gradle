@@ -10,7 +10,7 @@ dependencies {
     compileOnly "org.springframework.boot:spring-boot-starter-web:${v}"
 }
 
-def coreVersion = '0.1'
+def coreVersion = '0.2'
 def coreArtifactId = "http-raw-log"
 
 

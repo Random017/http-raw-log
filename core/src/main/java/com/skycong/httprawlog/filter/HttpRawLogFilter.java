@@ -46,7 +46,8 @@ import java.util.stream.Collectors;
  * {
  * safdsafsdaff
  * }
- * [response data]:	OK
+ * [response data]:httpStatus=200	 responseHeaders={content-type=text/plain;charset=UTF-8}
+ * OK
  * </p>
  *
  * @author ruanmingcong
