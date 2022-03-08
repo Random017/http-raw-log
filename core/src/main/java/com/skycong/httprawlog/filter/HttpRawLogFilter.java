@@ -95,7 +95,7 @@ public class HttpRawLogFilter implements Filter {
 
     private void printLog(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
 
-        String sessionId, method, requestURL, requestHeaders, queryString, requestBody = null, responseBody, httpStatus;
+        String sessionId, method, requestURL, requestHeaders, queryString, requestBody = null, responseBody, httpStatus, responseHeaders;
         sessionId = request.getSession().getId();
         method = request.getMethod();
         requestURL = request.getRequestURI();
@@ -147,7 +147,14 @@ public class HttpRawLogFilter implements Filter {
             responseBody = new String(bytes);
         }
         httpStatus = String.valueOf(myResponseWrapper.getStatus());
-
+        Map<String, String> respHeadMap = new HashMap<>(logHeaders.length);
+        for (String logHeader : logHeaders) {
+            String header = myResponseWrapper.getHeader(logHeader);
+            if (header != null && !header.isEmpty()) {
+                respHeadMap.put(logHeader, header);
+            }
+        }
+        responseHeaders = respHeadMap.toString();
         String requestLog = "";
         if (!queryString.isEmpty()) {
             requestLog = "#query string# " + queryString;
@@ -162,7 +169,7 @@ public class HttpRawLogFilter implements Filter {
                 "\n[url]:" + method + "\t" + requestURL +
                 "\n[headers]:" + requestHeaders +
                 "\n[request data]:\t" + requestLog +
-                "\n[response data]:httpStatus=" + httpStatus + "\t" + responseBody + "\n";
+                "\n[response data]:httpStatus=" + httpStatus + "\t responseHeaders=" + responseHeaders + "\n" + responseBody + "\n";
         LOGGER.debug(sb);
     }
 

@@ -47,7 +47,8 @@ public class HttpRawLogApplication {
     }
 
     @RequestMapping("all")
-    Object all() {
+    Object all(HttpServletResponse response) {
+        response.addHeader("abc", String.valueOf(System.currentTimeMillis()));
         return "OK";
     }
 
