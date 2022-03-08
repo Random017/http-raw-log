@@ -32,6 +32,7 @@ public class AutoWebConfig {
     /**
      * ${com.skycong.http-raw.log} 该数据配置为true 开启，默认开启
      * 打印全局的http raw log 拦截器
+     * @param applicationContext application
      *
      * @return filter bean
      */
