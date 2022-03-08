@@ -3,12 +3,14 @@ package com.skycong.httprawlog.autoconfig;
 import com.skycong.httprawlog.filter.HttpRawLogFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -28,20 +30,6 @@ public class AutoWebConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutoWebConfig.class);
 
     /**
-     * HttpRawLogFilter 拦截的urls 正则
-     * 需要拦截处理的URL
-     */
-    @Value("${com.skycong.http-raw.log.urls:/*}")
-    private String urlPatterns;
-
-
-    /**
-     * HttpRawLogFilter 打印的请求头字段
-     */
-    @Value("${com.skycong.http-raw.log.headers:content-type}")
-    private String headers;
-
-    /**
      * ${com.skycong.http-raw.log} 该数据配置为true 开启，默认开启
      * 打印全局的http raw log 拦截器
      *
@@ -49,7 +37,19 @@ public class AutoWebConfig {
      */
     @Bean
     @ConditionalOnExpression("${com.skycong.http-raw.log:true}")
-    public FilterRegistrationBean<HttpRawLogFilter> filterRegistrationBean() {
+    public FilterRegistrationBean<HttpRawLogFilter> filterRegistrationBean(@Autowired ApplicationContext applicationContext) {
+        /*
+         * HttpRawLogFilter 拦截的urls 正则
+         * 需要拦截处理的URL
+         */
+        String urlPatterns = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.urls");
+        urlPatterns = StringUtils.isEmpty(urlPatterns) ? "/*" : urlPatterns;
+        /*
+         * HttpRawLogFilter 打印的请求头字段
+         */
+        String headers = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.headers");
+        headers = StringUtils.isEmpty(headers) ? "content-type" : headers;
+
         String[] split = urlPatterns.split(",");
         List<String> collect = Arrays.stream(split).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
         String[] strings1 = new String[collect.size()];
