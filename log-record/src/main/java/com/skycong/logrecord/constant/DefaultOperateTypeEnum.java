@@ -1,9 +1,9 @@
-package com.skycong.logrecord.core;
+package com.skycong.logrecord.constant;
 
 /**
  * @author ruanmingcong (005163) on 2022/4/21 18:08
  */
-public enum DefaultOperateTypeEnum  OperateType {
+public enum DefaultOperateTypeEnum {
 
     /**
      * 添加操作
@@ -31,7 +31,6 @@ public enum DefaultOperateTypeEnum  OperateType {
     SYNC,
     ;
 
-    @Override
     public String operateType() {
         return this.name().toLowerCase();
     }

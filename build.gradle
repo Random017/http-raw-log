@@ -23,6 +23,7 @@ subprojects {
 
     repositories {
         maven { url nexusUrl }
+        mavenCentral()
     }
 
     tasks.withType(JavaCompile) {

@@ -7,7 +7,9 @@ dependencies {
         v = java.util.Optional.ofNullable(springBootVersion).orElse(v)
     } catch (MissingPropertyException e) {
     }
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:${v}"
     compileOnly "org.springframework.boot:spring-boot-starter-web:${v}"
+    compileOnly "org.springframework.boot:spring-boot-starter-aop:${v}"
 }
 
 def coreVersion = '0.1'

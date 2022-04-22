@@ -1,2 +1,2 @@
 # Auto Configuration
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.skycong.logrecord.autoconfig.AutoWebConfig
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.skycong.logrecord.config.LogRecordConfiguration
