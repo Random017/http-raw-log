@@ -24,7 +24,7 @@ import java.lang.annotation.Target;
 public @interface LogRecord {
 
     /**
-     * 日志记录模板 ，支持 SpEL 表达式
+     * 日志记录模板 ，支持 SpEL 表达式 ,其中 {#_ret} 为方法返回结果对象 {#_errMsg} 方法执行异常时信息
      */
     String value();
 

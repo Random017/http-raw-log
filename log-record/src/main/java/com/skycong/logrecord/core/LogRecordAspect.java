@@ -1,6 +1,7 @@
 package com.skycong.logrecord.core;
 
 import com.skycong.logrecord.pojo.LogRecordPojo;
+import com.skycong.logrecord.service.FunctionService;
 import com.skycong.logrecord.service.OperatorService;
 import com.skycong.logrecord.service.RecordLogService;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -44,15 +45,22 @@ public class LogRecordAspect {
     private final OperatorService operatorService;
 
     /**
+     * 自定义函数
+     */
+    private final FunctionService functionService;
+
+    /**
      * 记录日志服务
      */
     private final RecordLogService recordLogService;
 
     public LogRecordAspect(OperatorService operatorService,
-                           RecordLogService recordLogService) {
+                           RecordLogService recordLogService,
+                           FunctionService functionService) {
         this.logRecordExpressionEvaluator = new LogRecordExpressionEvaluator();
         this.operatorService = operatorService;
         this.recordLogService = recordLogService;
+        this.functionService = functionService;
         LOGGER.debug("LogRecordAspect init success OperatorService = {},RecordLogService = {}", this.operatorService.getClass(), this.recordLogService.getClass());
     }
 
@@ -111,6 +119,7 @@ public class LogRecordAspect {
         try {
             ctx.setContextVariables();
             ctx.setRetAndErrMsg(res, errMsg);
+            ctx.setFunctions(functionService.getFunctions());
             recordLog(new LogRecordPojo(logRecord.value(), logRecord.operator(), logRecord.operateType(), logRecord.businessType(), logRecord.businessDataId(), logRecord.businessDataDetail()), cacheKey, ctx);
         } catch (Exception t) {
             LOGGER.error("持久化日志方法执行出错", t);
@@ -226,6 +235,15 @@ public class LogRecordAspect {
             }
             if (errMsg != null) {
                 setVariable("_errMsg", errMsg);
+            }
+        }
+
+        /**
+         * 设置自定义函数
+         */
+        public void setFunctions(Map<String, Method> map) {
+            for (Map.Entry<String, Method> entry : map.entrySet()) {
+                setVariable(entry.getKey(), entry.getValue());
             }
         }
 

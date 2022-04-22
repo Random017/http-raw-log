@@ -24,6 +24,7 @@ public class LogRecordTest {
 
 
     @LogRecord(value = "'现在时间是' + #user.dateTime + ',姓名:'+ #user.name + ', 年龄:'+ #user.age + '返回结果'+ #_ret + #_errMsg", businessType = "test")
+
     @RequestMapping("test1")
     public Object test1(User user) {
         log.info("" + user);
@@ -40,13 +41,18 @@ public class LogRecordTest {
     @Autowired
     ApplicationContext applicationContext;
 
-    @LogRecord(value = "'test2现在时间是' + #user.dateTime + ',姓名:'+ #user.name + ', 年龄:'+ #user.age + '返回结果'+ #_ret + #_errMsg", businessType = "test")
+    @LogRecord(value = "'test2现在时间是' + #user.dateTime + #reverseString('test2现在时间是')", businessType = "test")
+    // @LogRecord(value = "'test2现在时间是' + #user.dateTime + ',姓名:'+ #user.name + ', 年龄:'+ #user.age + '返回结果'+ #_ret + #_errMsg", businessType = "test")
     @RequestMapping("test2")
     public Object test2(User user) {
         new Thread(() -> {
-            test1(user);
+            applicationContext.getBean(LogRecordTest.class).test1(user);
         }).start();
         return "safdsafsafsafsafsfsa";
+    }
+
+    public String abcd(String a){
+        return a + "123";
     }
 
     public static void main(String[] args) {
