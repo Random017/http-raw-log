@@ -1,5 +1,6 @@
 package com.skycong.httprawlog.logrecord;
 
+import com.skycong.logrecord.constant.InternalOperateType;
 import com.skycong.logrecord.core.LogRecord;
 import lombok.Data;
 import org.slf4j.Logger;
@@ -23,8 +24,9 @@ public class LogRecordTest {
     private static final Logger log = LoggerFactory.getLogger(LogRecordTest.class);
 
 
-    @LogRecord(value = "'现在时间是' + #user.dateTime + ',姓名:'+ #user.name + ', 年龄:'+ #user.age + '返回结果'+ #_ret + #_errMsg", businessType = "test")
-
+    @LogRecord(value = "'现在时间是' + #user.dateTime + ',姓名:'+ #user.name + ', 年龄:'+ #user.age + '返回结果'+ #_ret + #_errMsg",
+            businessType = "test",
+            operateType = InternalOperateType.Add)
     @RequestMapping("test1")
     public Object test1(User user) {
         log.info("" + user);
@@ -51,7 +53,7 @@ public class LogRecordTest {
         return "safdsafsafsafsafsfsa";
     }
 
-    public String abcd(String a){
+    public String abcd(String a) {
         return a + "123";
     }
 

@@ -1,14 +1,9 @@
 package com.skycong.logrecord.core;
 
-import com.skycong.logrecord.constant.DefaultOperateTypeEnum;
-import com.skycong.logrecord.service.OperatorService;
+import com.skycong.logrecord.constant.InternalOperateType;
+import com.skycong.logrecord.service.LogRecordService;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
  * 注解
@@ -31,13 +26,13 @@ public @interface LogRecord {
     /**
      * 操作人信息，支持 SpEL 表达式
      * <p>
-     * 可以实现接口 {@link OperatorService#getCurrentOperator(String)} 以重写获取操作人方法
+     * 可以实现接口 {@link LogRecordService#getCurrentOperator(String)} 以重写获取操作人方法
      * </p>
      */
     String operator() default "";
 
     /**
-     * 操作类型，常量 参考{@link DefaultOperateTypeEnum}
+     * 操作类型，常量 参考{@link InternalOperateType}
      */
     String operateType() default "";
 

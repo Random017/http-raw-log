@@ -1,9 +1,7 @@
 package com.skycong.logrecord.core;
 
 import com.skycong.logrecord.pojo.LogRecordPojo;
-import com.skycong.logrecord.service.FunctionService;
-import com.skycong.logrecord.service.OperatorService;
-import com.skycong.logrecord.service.RecordLogService;
+import com.skycong.logrecord.service.LogRecordService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -39,29 +37,12 @@ public class LogRecordAspect {
      */
     private final LogRecordExpressionEvaluator logRecordExpressionEvaluator;
 
-    /**
-     * 获取操作人服务
-     */
-    private final OperatorService operatorService;
+    private final LogRecordService logRecordService;
 
-    /**
-     * 自定义函数
-     */
-    private final FunctionService functionService;
-
-    /**
-     * 记录日志服务
-     */
-    private final RecordLogService recordLogService;
-
-    public LogRecordAspect(OperatorService operatorService,
-                           RecordLogService recordLogService,
-                           FunctionService functionService) {
+    public LogRecordAspect(LogRecordService logRecordService) {
         this.logRecordExpressionEvaluator = new LogRecordExpressionEvaluator();
-        this.operatorService = operatorService;
-        this.recordLogService = recordLogService;
-        this.functionService = functionService;
-        LOGGER.debug("LogRecordAspect init success OperatorService = {},RecordLogService = {}", this.operatorService.getClass(), this.recordLogService.getClass());
+        this.logRecordService = logRecordService;
+        LOGGER.debug("LogRecordAspect init success LogRecordService = {}", this.logRecordService.getClass());
     }
 
 
@@ -119,7 +100,7 @@ public class LogRecordAspect {
         try {
             ctx.setContextVariables();
             ctx.setRetAndErrMsg(res, errMsg);
-            ctx.setFunctions(functionService.getFunctions());
+            ctx.setFunctions(logRecordService.getFunctions());
             recordLog(new LogRecordPojo(logRecord.value(), logRecord.operator(), logRecord.operateType(), logRecord.businessType(), logRecord.businessDataId(), logRecord.businessDataDetail()), cacheKey, ctx);
         } catch (Exception t) {
             LOGGER.error("持久化日志方法执行出错", t);
@@ -152,17 +133,17 @@ public class LogRecordAspect {
         logRecordPojo.setBusinessDataDetail(logRecordExpressionEvaluator.parseExpression(businessDataDetailEl, methodKey, ctx));
         // 获取操作人
         try {
-            logRecordPojo.setOperator(operatorService.getCurrentOperator(logRecordPojo.getOperator()));
+            logRecordPojo.setOperator(logRecordService.getCurrentOperator(logRecordPojo.getOperator()));
         } catch (Throwable e) {
             LOGGER.error("调用 operatorService.getCurrentOperator 异常", e);
         }
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("原始注解值: valueEl = {},operatorEl = {},businessDataIdEl = {},businessDataDetailEl = {}, 解析后的值为: {}",
-                    valueEl, operatorEl, businessDataIdEl, businessDataDetailEl, logRecordPojo);
+            LOGGER.debug("SpEl解析后的值为: {}, 原始注解值: valueEl = {},operatorEl = {},businessDataIdEl = {},businessDataDetailEl = {}",
+                    logRecordPojo, valueEl, operatorEl, businessDataIdEl, businessDataDetailEl);
         }
         // 记录日志
         try {
-            recordLogService.record(logRecordPojo);
+            logRecordService.record(logRecordPojo);
         } catch (Throwable e) {
             LOGGER.error("调用 RecordLogService.record 异常", e);
         }
