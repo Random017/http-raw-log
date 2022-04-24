@@ -33,6 +33,11 @@ public class LogRecordAspect {
     public static final Logger LOGGER = LoggerFactory.getLogger(LogRecordAspect.class);
 
     /**
+     * 缓存日志注解, 避免重复解析 SpEL 模板
+     */
+    private final ConcurrentHashMap<AnnotatedElementKey, LogRecord> targetAnnotationCache = new ConcurrentHashMap<>();
+
+    /**
      * 模板解析器
      */
     private final LogRecordExpressionEvaluator logRecordExpressionEvaluator;
@@ -44,12 +49,6 @@ public class LogRecordAspect {
         this.logRecordService = logRecordService;
         LOGGER.debug("LogRecordAspect init success LogRecordService = {}", this.logRecordService.getClass());
     }
-
-
-    /**
-     * 缓存日志注解, 避免重复解析 SpEL 模板
-     */
-    private final ConcurrentHashMap<AnnotatedElementKey, LogRecord> targetAnnotationCache = new ConcurrentHashMap<>();
 
     /**
      * 切点

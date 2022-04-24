@@ -18,6 +18,9 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 public class FunctionServiceImpl implements LogRecordService {
+    /**
+     * 自定义函数
+     */
     @Override
     public Map<String, Method> getFunctions() {
         Method reverseString = null;

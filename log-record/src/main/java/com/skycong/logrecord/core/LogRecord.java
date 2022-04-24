@@ -42,7 +42,7 @@ public @interface LogRecord {
     String businessType();
 
     /**
-     * 业务数据标识ID，支持 SpEL 表达式
+     * 业务数据标识ID，通常是数据唯一标识ID，支持 SpEL 表达式
      */
     String businessDataId() default "";
 

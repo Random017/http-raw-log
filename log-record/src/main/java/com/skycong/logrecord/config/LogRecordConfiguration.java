@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
 /**
+ * log record auto configuration
+ *
  * @author ruanmingcong (005163) on 2022/4/22 16:31
  */
 @Configuration
