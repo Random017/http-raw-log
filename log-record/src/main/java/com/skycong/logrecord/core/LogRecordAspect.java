@@ -93,9 +93,8 @@ public class LogRecordAspect {
             throwable = t;
             errMsg = "执行切点方法异常 :" + t.getMessage();
         }
-        // 切点执行 结束============================================================================
 
-        // 执行记录日志操作 开始============================================================================
+        // 执行记录日志操作 开始
         try {
             ctx.setContextVariables();
             ctx.setRetAndErrMsg(res, errMsg);
@@ -104,14 +103,11 @@ public class LogRecordAspect {
         } catch (Exception t) {
             LOGGER.error("持久化日志方法执行出错", t);
         } finally {
-            // 清空context
             LogRecordContext.clear();
         }
-        // 执行记录日志操作 结束============================================================================
 
         // 执行切点方法时有异常直接抛出，否则正常返回
         if (throwable != null) {
-            LOGGER.error(errMsg, throwable);
             throw throwable;
         }
         return res;
