@@ -15,8 +15,12 @@ import org.springframework.context.annotation.Lazy;
 @Lazy
 public class LogRecordConfiguration {
 
+
     /**
      * 配置 {com.skycong.logrecord.open} ，默认开启
+     *
+     * @param logRecordService {@link LogRecordService}
+     * @return bean LogRecordAspect
      */
     @Bean
     @ConditionalOnExpression("${com.skycong.logrecord.open:true}")

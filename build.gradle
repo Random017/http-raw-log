@@ -10,6 +10,8 @@ buildscript {
         oss_pass = System.getProperty("oss_pass")
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+
+        springBootVersion = '2.3.7.RELEASE'
     }
 }
 
@@ -22,6 +24,7 @@ subprojects {
     apply plugin: 'java-library'
 
     repositories {
+        mavenLocal()
         maven { url nexusUrl }
         mavenCentral()
     }
@@ -41,4 +44,6 @@ subprojects {
             options.addBooleanOption('html5', true)
         }
     }
+
+    tasks.withType(Javadoc).all { enabled = false }
 }

@@ -22,7 +22,7 @@ import java.util.Map;
 @SpringBootApplication
 @RestController
 @RequestMapping("test")
-@ComponentScan(basePackages = "com.skycong")
+// @ComponentScan(basePackages = "com.skycong")
 public class HttpRawLogApplication {
 
 

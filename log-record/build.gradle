@@ -12,7 +12,7 @@ dependencies {
     compileOnly "org.springframework.boot:spring-boot-starter-aop:${v}"
 }
 
-def coreVersion = '0.1'
+def coreVersion = '0.0.1'
 def coreArtifactId = "log-record"
 
 
