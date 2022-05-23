@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "com.skycong.logrecord.open",
+      "type": "java.lang.Boolean",
+      "defaultValue": "true",
+      "description": "是否开启 LogRecordAspect，默认 true."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "properties": [
+    {
+      "name": "com.skycong.http-raw.log.open",
+      "type": "java.lang.Boolean",
+      "defaultValue": "true",
+      "description": "是否开启 http-raw-log，默认 true."
+    },
+    {
+      "name": "com.skycong.http-raw.log.urls",
+      "type": "java.lang.String",
+      "defaultValue": "/*",
+      "description": "拦截打印的url正则，参考 Filter UrlPatterns 格式，多个URL时使用‘,’ 分隔，默认 /*."
+    },
+    {
+      "name": "com.skycong.http-raw.log.headers",
+      "type": "java.lang.String",
+      "defaultValue": "content-type",
+      "description": "需要打印http-raw-log的请求头key，多个使用‘,’ 分隔，默认 content-type."
+    }
+  ]
+}
