@@ -88,7 +88,7 @@ public class RedisWebController {
      */
     @PostMapping("addKey")
     Object addKey(@RequestBody KeyValuePojo keyValuePojo) {
-        return redisWebService.addKey(keyValuePojo);
+        return redisWebService.addOrUpdate(keyValuePojo);
     }
 
     /**
@@ -104,7 +104,6 @@ public class RedisWebController {
      * 获取key的值
      *
      * @param key 搜索的key 关键字
-     *
      * @return eg
      * <pre>
      *  type = string，value = string

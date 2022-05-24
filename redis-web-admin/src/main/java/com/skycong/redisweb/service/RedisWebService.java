@@ -3,8 +3,6 @@ package com.skycong.redisweb.service;
 import com.skycong.redisweb.pojo.KeyValuePojo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.DataType;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.DefaultTypedTuple;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -14,9 +12,10 @@ import org.springframework.data.redis.core.types.RedisClientInfo;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -89,74 +88,64 @@ public class RedisWebService {
      * 获取对应key的值
      */
     public Object getKey(String key) {
-        RedisConnection connection = redisTemplate.getRequiredConnectionFactory().getConnection();
-        Long expire = redisTemplate.getExpire(key);
-
-        HashMap<String, Object> map = new HashMap<>(2);
-        Object v = null;
-        long size;
+        HashMap<String, Object> res = new HashMap<>(2);
+        // 值，依据类型对应不同的类型，list ，set hash
+        Object value;
+        // string[字符串的字节大小]，list、set、zset、hash 元素个数
+        Long size;
         DataType type = redisTemplate.type(key);
         if (type == DataType.STRING) {
-            v = redisTemplate.opsForValue().get(key);
+            value = redisTemplate.opsForValue().get(key);
             size = redisTemplate.opsForValue().size(key);
         } else if (type == DataType.LIST) {
             size = redisTemplate.opsForList().size(key);
-            Long lLen = connection.lLen(key.getBytes(StandardCharsets.UTF_8));
-            if (lLen != null && lLen > 0) {
-                v = redisTemplate.opsForList().range(key, 0, lLen - 1);
-            }
+            value = redisTemplate.opsForList().range(key, 0, -1);
         } else if (type == DataType.SET) {
             size = redisTemplate.opsForSet().size(key);
-            Cursor<String> scan = redisTemplate.opsForSet().scan(key, ScanOptions.scanOptions().match("*").count(10000).build());
-            Set<String> sets = new HashSet<>(128);
-            while (scan.hasNext()) {
-                sets.add(scan.next());
-            }
-            try {
-                scan.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            v = sets;
+            value = redisTemplate.opsForSet().members(key);
         } else if (type == DataType.ZSET) {
             size = redisTemplate.opsForZSet().size(key);
-            Long lLen = redisTemplate.opsForZSet().zCard(key);
-            if (lLen != null && lLen > 0) {
-                v = redisTemplate.opsForZSet().rangeWithScores(key, 0, lLen - 1);
-            }
+            value = redisTemplate.opsForZSet().rangeWithScores(key, 0, -1);
         } else if (type == DataType.HASH) {
             size = redisTemplate.opsForHash().size(key);
-            v = redisTemplate.opsForHash().entries(key);
+            value = redisTemplate.opsForHash().entries(key);
         } else if (type == DataType.STREAM) {
             size = redisTemplate.opsForStream().size(key);
-            v = redisTemplate.opsForStream().info(key);
+            value = redisTemplate.opsForStream().info(key);
         } else {
             return null;
         }
-        map.put("value", v);
-        map.put("size", size);
-        map.put("type", type.name().toLowerCase());
-        map.put("ttl", expire);
-        connection.close();
-        return map;
+        Long expire = redisTemplate.getExpire(key);
+        res.put("value", value);
+        res.put("size", size);
+        res.put("type", type.name().toLowerCase());
+        res.put("ttl", expire);
+        return res;
     }
 
 
     /**
      * 添加或修改
      */
-    public Object addKey(KeyValuePojo keyValuePojo) {
-        RedisConnection connection = redisTemplate.getRequiredConnectionFactory().getConnection();
+    public Object addOrUpdate(KeyValuePojo keyValuePojo) {
         String key = keyValuePojo.getKey();
+        boolean isUpdateAll = keyValuePojo.isUpdateAll();
+
+        Long expire = null;
+        // 若是全量更新，先删除旧的key
+        if (isUpdateAll) {
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+                // 记录ttl
+                expire = redisTemplate.getExpire(key);
+                redisTemplate.delete(key);
+            }
+        }
 
         DataType type = DataType.fromCode(keyValuePojo.getType());
         if (type == DataType.STRING) {
             redisTemplate.opsForValue().set(key, keyValuePojo.getNewValue());
         } else if (type == DataType.LIST) {
-            if (keyValuePojo.isUpdateAll()) {
-                // 先清空list
-                redisTemplate.opsForList().trim(key, 1, 0);
-                // 再加入
+            if (isUpdateAll) {
                 redisTemplate.opsForList().rightPushAll(key, keyValuePojo.getListValue());
             } else {
                 // 修改list指定位置的值
@@ -168,23 +157,13 @@ public class RedisWebService {
                     //    开头加
                     redisTemplate.opsForList().leftPush(key, keyValuePojo.getNewValue());
                 } else {
-                    connection.lSet(key.getBytes(StandardCharsets.UTF_8), index, keyValuePojo.getNewValue().getBytes(StandardCharsets.UTF_8));
+                    // 指定index
+                    redisTemplate.opsForList().set(key, index, keyValuePojo.getNewValue());
                 }
             }
         } else if (type == DataType.SET) {
-            if (keyValuePojo.isUpdateAll()) {
-                Set<String> members = redisTemplate.opsForSet().members(key);
-                // 先清空
-                if (members.size() > 0) {
-                    Object[] objects = new Object[members.size()];
-                    members.toArray(objects);
-                    redisTemplate.opsForSet().remove(key, objects);
-                }
-                // 再添加
-                List<String> listValue = keyValuePojo.getListValue();
-                String[] strings = new String[listValue.size()];
-                listValue.toArray(strings);
-                redisTemplate.opsForSet().add(key, strings);
+            if (isUpdateAll) {
+                redisTemplate.opsForSet().add(key, collect2Arr(keyValuePojo.getListValue()));
             } else {
                 // 移除旧值，新增新值
                 String oldValue = keyValuePojo.getOldValue();
@@ -192,17 +171,9 @@ public class RedisWebService {
                 redisTemplate.opsForSet().add(key, keyValuePojo.getNewValue());
             }
         } else if (type == DataType.ZSET) {
-            if (keyValuePojo.isUpdateAll()) {
-                Boolean hasKey = redisTemplate.hasKey(key);
-                // 先删除旧的
-                if (Boolean.TRUE.equals(hasKey)) {
-                    Set<String> allValues = redisTemplate.opsForZSet().range(key, 0, -1);
-                    Object[] objects = new Object[allValues.size()];
-                    allValues.toArray(objects);
-                    redisTemplate.opsForZSet().remove(key, objects);
-                }
-                // 保存新的
-                Set<ZSetOperations.TypedTuple<String>> collect = keyValuePojo.getZsets().stream().map(zset -> new DefaultTypedTuple<>(zset.getValue(), zset.getScore())).collect(Collectors.toSet());
+            if (isUpdateAll) {
+                Set<ZSetOperations.TypedTuple<String>> collect = keyValuePojo.getZsets()
+                        .stream().map(zset -> new DefaultTypedTuple<>(zset.getValue(), zset.getScore())).collect(Collectors.toSet());
                 redisTemplate.opsForZSet().add(key, collect);
             } else {
                 // 单个值更新
@@ -210,16 +181,20 @@ public class RedisWebService {
                 redisTemplate.opsForZSet().add(key, keyValuePojo.getNewZset().getValue(), keyValuePojo.getNewZset().getScore());
             }
         } else if (type == DataType.HASH) {
-            if (keyValuePojo.isUpdateAll()) {
+            if (isUpdateAll) {
                 redisTemplate.opsForHash().putAll(key, keyValuePojo.getMapValue());
             } else {
                 redisTemplate.opsForHash().delete(key, keyValuePojo.getOldValue());
                 redisTemplate.opsForHash().put(key, keyValuePojo.getNewValue(), keyValuePojo.getHashValue());
             }
-        } else if (type == DataType.STREAM) {
-            redisTemplate.opsForStream().add(MapRecord.create(key, new HashMap<>()));
         }
-        connection.close();
+        // else if (type == DataType.STREAM) {
+        //     redisTemplate.opsForStream().add(MapRecord.create(key, new HashMap<>()));
+        // }
+        // 重新设置 全量更新时的expire 值
+        if (expire != null) {
+            redisTemplate.expire(key, Duration.ofSeconds(expire));
+        }
         return "OK";
     }
 
@@ -267,10 +242,22 @@ public class RedisWebService {
             redisTemplate.opsForZSet().remove(key, subValue);
         } else if (type == DataType.HASH) {
             redisTemplate.opsForHash().delete(key, subValue);
-        } else if (type == DataType.STREAM) {
-        } else {
+        }
+        // else if (type == DataType.STREAM) {
+        //    nothing
+        // }
+        else {
             return null;
         }
         return "OK";
+    }
+
+    /**
+     * 将集合转换成数组
+     */
+    private String[] collect2Arr(Collection<String> collection) {
+        String[] objects = new String[collection.size()];
+        collection.toArray(objects);
+        return objects;
     }
 }
