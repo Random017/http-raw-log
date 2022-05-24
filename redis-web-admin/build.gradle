@@ -7,19 +7,13 @@ dependencies {
     println("springBootVersion = ${v}")
 
     implementation "org.springframework.boot:spring-boot-starter-web:${v}"
-    implementation "org.springframework.boot:spring-boot-starter-aop:${v}"
-    testCompile "org.springframework.boot:spring-boot-starter-test:${v}"
     implementation "org.springframework.boot:spring-boot-starter-data-redis:${v}"
+
+    testCompile "org.springframework.boot:spring-boot-starter-test:${v}"
 
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.12'
     compile group: 'org.projectlombok', name: 'lombok', version: '1.18.22'
-
-    compile project(':core')
-    implementation project(':redis-web-admin')
-//    compile project(':log-record')
-// test auto configuration
-    implementation "com.skycong:log-record:0.0.1"
 }
 
 configurations {
