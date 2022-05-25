@@ -41,7 +41,7 @@ public class KeyValuePojo {
     /**
      * <pre>
      *
-     * 1，string，value 也为string
+     * 1，string，  {@link #newValue} 为新值
      * 2，list，
      *      updateAll = true ，{@link #listValue} 必须是list  [a,b,c]
      *      updateAll = false , {@link #newValue} 为新值，{@link #index}为该值的索引

@@ -131,12 +131,12 @@ public class RedisWebService {
         String key = keyValuePojo.getKey();
         boolean isUpdateAll = keyValuePojo.isUpdateAll();
 
-        Long expire = null;
+        Long ttl = null;
         // 若是全量更新，先删除旧的key
         if (isUpdateAll) {
             if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
                 // 记录ttl
-                expire = redisTemplate.getExpire(key);
+                ttl = redisTemplate.getExpire(key);
                 redisTemplate.delete(key);
             }
         }
@@ -192,8 +192,8 @@ public class RedisWebService {
         //     redisTemplate.opsForStream().add(MapRecord.create(key, new HashMap<>()));
         // }
         // 重新设置 全量更新时的expire 值
-        if (expire != null) {
-            redisTemplate.expire(key, Duration.ofSeconds(expire));
+        if (ttl != null && ttl >= 0) {
+            redisTemplate.expire(key, Duration.ofSeconds(ttl));
         }
         return "OK";
     }
@@ -259,5 +259,11 @@ public class RedisWebService {
         String[] objects = new String[collection.size()];
         collection.toArray(objects);
         return objects;
+    }
+
+    public Object persist(KeyValuePojo keyValuePojo) {
+        String key = keyValuePojo.getKey();
+        redisTemplate.persist(key);
+        return "OK";
     }
 }

@@ -86,8 +86,8 @@ public class RedisWebController {
     /**
      * 新增key
      */
-    @PostMapping("addKey")
-    Object addKey(@RequestBody KeyValuePojo keyValuePojo) {
+    @PostMapping("addOrUpdate")
+    Object addOrUpdate(@RequestBody KeyValuePojo keyValuePojo) {
         return redisWebService.addOrUpdate(keyValuePojo);
     }
 
@@ -140,6 +140,14 @@ public class RedisWebController {
     @PostMapping("renameKey")
     Object renameKey(@RequestBody KeyValuePojo keyValuePojo) {
         return redisWebService.renameKey(keyValuePojo);
+    }
+
+    /**
+     * persist key
+     */
+    @PostMapping("persist")
+    Object persist(@RequestBody KeyValuePojo keyValuePojo) {
+        return redisWebService.persist(keyValuePojo);
     }
 
 
