@@ -1,11 +1,167 @@
-<!--Create by ruanmingcong on  -->
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+    <meta charset='UTF-8'><meta name='viewport' content='width=device-width initial-scale=1'>
+    <title>README</title></head>
+<body><p>#### </p>
+<h4>info</h4>
+<pre><code class='language-json' lang='json'>GET /redisWebAdmin/info
+GET /redisWebAdmin/dbInfo
+</code></pre>
+<hr />
+<h4>keys</h4>
+<pre><code class='language-javascript' lang='javascript'># description： key搜索，支持模糊搜索和精确匹配
+#request
+GET /redisWebAdmin/keys?key=test&amp;exact=false
+[key]: #key 关键字
+[exact]:  #是否精确匹配（true、false），默认false
+
+#response keys list
+[
+  &quot;test/dev/key&quot;,
+  &quot;test/dev/key2&quot;,
+  &quot;test/dev/key3&quot;
+]
+</code></pre>
+<hr />
+<h4>get key</h4>
+<pre><code class='language-javascript' lang='javascript'># description： 获取key的值
+#request
+GET /redisWebAdmin/getKey?key=demo-string-key
+
+#response
+{
+  &quot;size&quot;: 380, # 值的所占用的字节大小，如果是集合，则是元素的个数
+  &quot;type&quot;: &quot;string&quot;, #值的数据类型（string、list、set、zset、hash）
+  &quot;value&quot;: &quot;value&quot;, # 依据 type 呈现不同的形式 （&quot;string&quot;，[list],[set],[{zset}],{map}）
+  &quot;ttl&quot;: -1 # ttl
+}
+</code></pre>
+<hr />
+<h4>add or update key</h4>
+<p>&nbsp;</p>
+<pre><code class='language-javascript' lang='javascript'># description： 新增或更新key
+#request
+POST /redisWebAdmin/addOrUpdate
+content-type : application-json/charset=utf8
+
+【type=string】
+{
+  &quot;key&quot;: &quot;141232133113211&quot;,
+  &quot;type&quot;: &quot;string&quot;,
+   // 新值
+  &quot;newValue&quot;: &quot;newValue_eikio&quot;
+}
+
+【type=list】单个更新
+{
+  &quot;key&quot;: &quot;demo-list-key&quot;,
+  &quot;type&quot;: &quot;list&quot;,
+   // 新值
+  &quot;newValue&quot;: &quot;newValue_eikio&quot;,
+   // 元素的index
+  &quot;index&quot;: 2
+}
+【type=list】全量更新
+{
+  &quot;key&quot;: &quot;demo-list-key&quot;,
+  &quot;type&quot;: &quot;list&quot;,
+   // list
+  &quot;listValue&quot;: [
+    &quot;listValue_vdjxa&quot;,
+    &quot;listValue_vdjxa2&quot;,
+    &quot;listValue_vdjxa3&quot;
+  ],
+   // 全量更新标识
+  &quot;updateAll&quot;: true
+}
+【type=set】单个更新
+{
+    &quot;key&quot;: &quot;demo-set-key&quot;,
+    &quot;type&quot;: &quot;set&quot;,
+    // 新值
+    &quot;newValue&quot;: &quot;newValue_isfnk&quot;,
+    // 旧值
+    &quot;oldValue&quot;: &quot;111&quot;
+}
+【type=set】全量更新
+{
+    &quot;key&quot;: &quot;demo-set-key&quot;,
+    &quot;type&quot;: &quot;set&quot;,
+    &quot;listValue&quot;: [
+        &quot;listValue_bjsxk&quot;,
+        &quot;listValue_bjsxk2&quot;,
+        &quot;listValue_bjsxk3&quot;,
+        &quot;listValue_bjsxk4&quot;
+    ],
+    &quot;updateAll&quot;: true
+}
+
+【type=zset】单个更新
+{
+  &quot;key&quot;: &quot;demo-zset-key&quot;,
+  &quot;type&quot;: &quot;zset&quot;,
+    // 旧值
+  &quot;oldValue&quot;: &quot;value_lvloq2&quot;,
+    // 新值
+  &quot;newZset&quot;: {
+    &quot;score&quot;: 1111.0,
+    &quot;value&quot;: &quot;value_t1d4l222&quot;
+  }
+}
+
+【type=zset】全量更新
+{
+  &quot;key&quot;: &quot;demo-zset-key&quot;,
+  &quot;type&quot;: &quot;zset&quot;,
+   // zset 集合
+  &quot;zsets&quot;: [
+    {
+      &quot;score&quot;: 1.0,
+      &quot;value&quot;: &quot;value_lvloq&quot;
+    },
+    {
+      &quot;score&quot;: 2.0,
+      &quot;value&quot;: &quot;value_lvloq2&quot;
+    }
+  ],
+  &quot;updateAll&quot;: true
+}
+
+【type=hash】单个更新
+{
+  &quot;key&quot;: &quot;demo-hash-key&quot;,
+  &quot;type&quot;: &quot;hash&quot;,
+   // 旧hash key
+  &quot;oldValue&quot;: &quot;old2&quot;,
+   // 新hash key
+  &quot;newValue&quot;: &quot;old1&quot;,
+   // 新hash 值
+  &quot;hashValue&quot;: &quot;value_t1d4啥地方撒放l222&quot;
+}
+
+【type=hash】全量更新
+{
+  &quot;key&quot;: &quot;demo-hash-key&quot;,
+  &quot;type&quot;: &quot;hash&quot;,
+    // 新map
+  &quot;mapValue&quot;: {
+    &quot;key1&quot;: 1111.0,
+    &quot;key2&quot;: &quot;value_t1d4l222&quot;
+  },
+  &quot;updateAll&quot;: true
+}
+
+
+#response
 OK
+</code></pre>
+<p><img src="../README.assets/18479.png" referrerpolicy="no-referrer" alt="image-20211019135507419"></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
 </body>
 </html>
