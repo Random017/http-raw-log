@@ -13,6 +13,16 @@ buildscript {
 
         springBootVersion = '2.3.7.RELEASE'
     }
+
+    repositories {
+        mavenLocal()
+        maven { url nexusUrl }
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
 }
 
 allprojects {
@@ -21,6 +31,7 @@ allprojects {
 }
 
 subprojects {
+    apply plugin: 'java'
     apply plugin: 'java-library'
 
     repositories {

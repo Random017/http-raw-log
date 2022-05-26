@@ -27,8 +27,6 @@ import java.util.Map;
 public class HttpRawLogApplication {
 
 
-
-
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpRawLogApplication.class);
 
     public static void main(String[] args) {
