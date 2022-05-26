@@ -31,3 +31,7 @@ configurations {
         extendsFrom annotationProcessor
     }
 }
+
+bootJar {
+    archiveBaseName = 'test-application'
+}
