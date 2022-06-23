@@ -32,8 +32,8 @@ public class AutoWebConfig {
     /**
      * ${com.skycong.http-raw.log} 该数据配置为true 开启，默认开启
      * 打印全局的http raw log 拦截器
-     * @param applicationContext application
      *
+     * @param applicationContext application
      * @return filter bean
      */
     @Bean
@@ -45,6 +45,9 @@ public class AutoWebConfig {
          */
         String urlPatterns = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.urls");
         urlPatterns = StringUtils.isEmpty(urlPatterns) ? "/*" : urlPatterns;
+        // 排除url 的后缀
+        String urlExcludeSuffix = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.url.exclude-suffix");
+        urlExcludeSuffix = StringUtils.isEmpty(urlExcludeSuffix) ? "js,css,html" : urlExcludeSuffix;
         /*
          * HttpRawLogFilter 打印的请求头字段
          */
@@ -58,7 +61,7 @@ public class AutoWebConfig {
 
         String[] split2 = headers.split(",");
         List<String> collect2 = Arrays.stream(split2).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
-        LOGGER.debug("init HttpRawLogFilter urls = {} ,log headers = {}", Arrays.toString(strings1), collect2);
+        LOGGER.debug("init HttpRawLogFilter urls = {} exclude-suffix = {} ,log headers = {}", Arrays.toString(strings1), urlExcludeSuffix, collect2);
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new HttpRawLogFilter());
         bean.setOrder(Integer.MIN_VALUE);
@@ -66,6 +69,7 @@ public class AutoWebConfig {
         bean.setName("rawLogFilter");
         Map<String, String> map = new HashMap<>();
         map.put("logHeaders", headers);
+        map.put("urlExcludeSuffix", urlExcludeSuffix);
         bean.setInitParameters(map);
         return bean;
     }

@@ -57,19 +57,26 @@ import java.util.stream.Collectors;
 public class HttpRawLogFilter implements Filter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpRawLogFilter.class);
+    public static final String S0 = ",";
+
 
     /**
      * 需要打印的请求头
      */
     private String[] logHeaders;
+    private List<String> urlExcludeSuffix;
 
     @Override
     public void init(FilterConfig filterConfig) {
+        String urlExcludeSuffix1 = filterConfig.getInitParameter("urlExcludeSuffix");
+        String[] split1 = urlExcludeSuffix1.split(S0);
+        urlExcludeSuffix = Arrays.stream(split1).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
+
         String logHeaders1 = filterConfig.getInitParameter("logHeaders");
         if (logHeaders1 == null || logHeaders1.isEmpty()) {
             logHeaders1 = "content-type";
         }
-        String[] split2 = logHeaders1.split(",");
+        String[] split2 = logHeaders1.split(S0);
         List<String> strings = Arrays.stream(split2).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
         this.logHeaders = new String[strings.size()];
         strings.toArray(this.logHeaders);
@@ -82,6 +89,17 @@ public class HttpRawLogFilter implements Filter {
             return;
         }
         if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
+            HttpServletRequest request1 = (HttpServletRequest) request;
+            String requestURI = request1.getRequestURI();
+            int i = requestURI.lastIndexOf('.');
+            // 不是第一个也不是最后一个字符
+            if (i > 0 && i != requestURI.length() - 1) {
+                String suffix = requestURI.substring(i + 1);
+                if (urlExcludeSuffix.contains(suffix)) {
+                    chain.doFilter(request, response);
+                    return;
+                }
+            }
             printLog((HttpServletRequest) request, (HttpServletResponse) response, chain);
         } else {
             LOGGER.warn("request or response is not instanceof httpServletRequest or httpServletResponse, so not print http raw log");
@@ -95,7 +113,7 @@ public class HttpRawLogFilter implements Filter {
 
 
     private void printLog(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-
+        // val
         String sessionId, method, requestURL, requestHeaders, queryString, requestBody = null, responseBody, httpStatus, responseHeaders;
         sessionId = request.getSession().getId();
         method = request.getMethod();
