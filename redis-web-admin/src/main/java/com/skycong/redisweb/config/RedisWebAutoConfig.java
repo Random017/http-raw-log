@@ -14,6 +14,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import javax.annotation.PostConstruct;
 import java.nio.charset.Charset;
@@ -25,7 +27,7 @@ import java.nio.charset.StandardCharsets;
  */
 @Configuration
 @ConditionalOnClass(RedisTemplate.class)
-public class RedisWebAutoConfig {
+public class RedisWebAutoConfig implements WebMvcConfigurer {
 
     ///////////////////////////////////////////////////////////////////////////
     // 常量定义
@@ -70,5 +72,13 @@ public class RedisWebAutoConfig {
         return new RedisWebController(redisWebService);
     }
 
-
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/redisWebAdmin/**")
+                .allowedHeaders("*")
+                .allowedHeaders("*")
+                .allowedOrigins("*")
+                .allowCredentials(true);
+        WebMvcConfigurer.super.addCorsMappings(registry);
+    }
 }

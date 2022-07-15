@@ -1,0 +1,160 @@
+<!--Create by ruanmingcong on  -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Redis-Web-Admin</title>
+</head>
+<style>
+
+
+    textarea {
+        font-family: "DejaVu Sans Mono";
+        font-weight: normal;
+        font-size: large;
+    }
+</style>
+<body>
+<div>
+    <input type="button" value="info" onclick="info()" style="width: 160px">
+    <br/>
+    <textarea id="infoP" cols="60" rows="30" class=""></textarea>
+</div>
+<div>
+    <label>
+
+        <input type="search" id="searchInput" onkeyup="search0(this.value)">
+        <input type="checkbox" id="checkbox" placeholder="精确匹配" onmouseover="hit1()" onmouseleave="hit2()">
+        <label id="hit1Label" style="color: firebrick"></label>
+        <br/>
+        <select id="keyList" name="keyList" style="width: 200px;" >
+            <option value="" style="width: max-content"></option>
+        </select>
+    </label>
+</div>
+
+</body>
+<script>
+
+    const server = "http://127.0.0.1:8943";
+
+    function info() {
+        httpGet(server + "/redisWebAdmin/info", "", function (res) {
+            document.getElementById("infoP").textContent = JSON.stringify(res, null, 4);
+        })
+    }
+
+
+    function search0(key) {
+        let checked = document.getElementById("checkbox").checked;
+        httpGet(server + "/redisWebAdmin/keys", {key: key, exact: checked}, function (res) {
+            let select = document.getElementById("keyList");
+            let html = "";
+            for (let i = 0; i < res.length; i++) {
+                html += '<option value="' + res[i] + '">' + res[i] + '</option>';
+            }
+            select.innerHTML = html;
+            select.focus();
+        })
+    }
+
+    function hit1() {
+        document.getElementById("hit1Label").innerText = "精确匹配搜索";
+    }
+
+    function hit2() {
+        setTimeout(function () {
+            document.getElementById("hit1Label").innerText = "";
+        }, 300)
+    }
+
+
+    /**
+     *  http post method
+     * @param url
+     * @param param js 对象
+     * @param done 响应完成后的callback
+     */
+    function httpPost(url, param, done) {
+        httpRequest('post', url, param, true, done);
+    }
+
+    /**
+     *  http post method
+     * @param url
+     * @param param js 对象
+     * @param done 响应完成后的callback
+     */
+    function httpGet(url, param, done) {
+        httpRequest('get', url, param, done);
+    }
+
+
+    /**
+     * http 请求
+     * @param method 请求方法get post
+     * @param url  请求url
+     * @param param 请求参数对象 object
+     * @param done  回调函数
+     */
+    function httpRequest(method, url, param, done) {
+        let xhr = new XMLHttpRequest();
+        if (method === 'get' && param != null) {
+            let s = object2QueryString(param);
+            if (s.length > 0) {
+                url = url + "?" + object2QueryString(param);
+            }
+        }
+        if (url)
+            xhr.open(method, url, true);
+        if (method === 'post') {
+            xhr.setRequestHeader("Content-type", "application/json;charset=utf-8");
+        }
+        xhr.setRequestHeader("AccessToken", window.localStorage.getItem("token"));
+        xhr.withCredentials = true;
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                let res = JSON.parse(xhr.responseText);
+                // if (interceptor(res)) {
+                done(res);
+                // }
+            }
+        };
+        if (method === 'post') {
+            xhr.send(JSON.stringify(param));
+        } else {
+            xhr.send();
+        }
+    }
+
+    /**
+     * 拦截器
+     * @param res
+     * @returns {boolean} true 通过，false拦截
+     */
+    function interceptor(res) {
+//    do something
+//     console.log("进入拦截器---------")
+        if (res.code === 7) {
+            window.location.href = "/";
+            return false;
+        }
+        return true;
+    }
+
+
+    /**
+     * 将 js 对象转换为 query string
+     * @param obj
+     * @returns {string}  key=value&k2=v2
+     */
+    function object2QueryString(obj) {
+        let queryStr = "";
+        for (let f in obj) {
+            queryStr += f + "=" + obj[f] + "&";
+        }
+        return queryStr.slice(0, queryStr.length - 1);
+    }
+
+</script>
+</html>

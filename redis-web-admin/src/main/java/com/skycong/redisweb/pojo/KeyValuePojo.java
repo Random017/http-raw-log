@@ -1,5 +1,7 @@
 package com.skycong.redisweb.pojo;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.util.List;
@@ -13,29 +15,35 @@ import java.util.Set;
  * @since 2022/5/24 15:02
  */
 @Data
+@ApiModel
 public class KeyValuePojo {
 
     /**
      * 单个key
      */
+    @ApiModelProperty(value = "单个key",example = "test1")
     private String key;
     /**
      * 批量key
      */
+    @ApiModelProperty(value = "keys 集合",example = "['test1','test2','test3']")
     private Set<String> keys;
 
     /**
      * 旧key
      */
+    @ApiModelProperty(value = "源key")
     private String srcKey;
     /**
      * 新key
      */
+    @ApiModelProperty(value = "目标key")
     private String destKey;
 
     /**
      * 是否删除所有，默认为false
      */
+    @ApiModelProperty(value = "是否删除所有，默认为false",example = "false")
     private boolean delAll = false;
 
     /**
@@ -60,16 +68,19 @@ public class KeyValuePojo {
      * </pre>
      * {@link org.springframework.data.redis.connection.DataType}
      */
+    @ApiModelProperty(value = "数据类型",example = "string",required = true,allowableValues ="string,list,set,zset,hash" )
     private String type = "string";
 
     /**
      * 新值
      */
+    @ApiModelProperty(value = "新值")
     private String newValue;
 
     /**
      * 旧值
      */
+    @ApiModelProperty(value = "旧值")
     private String oldValue;
 
     /**
