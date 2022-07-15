@@ -37,18 +37,19 @@ import java.util.stream.Collectors;
 
 /**
  * 控制台打印日志示例：
- * <p>
+ *
+ * <pre>
  * -------------- http raw data sessionId:	8C6A1D4433A10BFED5D64516939904E5
  * [url]:POST	/test/upload/p
  * [headers]:{host=localhost:8943, referer=null, content-type=null, cookie=JSESSIONID=1E60F913C20FFB23354FC404C86759F3, accept-language=null, user-agent=PostmanRuntime/7.28.4}
  * [request data]:	#query string# a=[b], c=[d], e[0]=[0], e[1]=[1],
  * #request body#
  * {
- * safdsafsdaff
+ *      test
  * }
  * [response data]:httpStatus=200	 responseHeaders={content-type=text/plain;charset=UTF-8}
  * OK
- * </p>
+ * </pre>
  *
  * @author ruanmingcong
  * @version 1.0
@@ -200,12 +201,12 @@ public class HttpRawLogFilter implements Filter {
         /**
          * 请求体
          */
-        private String requestBody = "";
+        private byte[] bytes;
 
         MyRequestWrapper(HttpServletRequest request) {
             super(request);
             try {
-                requestBody = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
+                bytes = StreamUtils.copyToByteArray(request.getInputStream());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -213,9 +214,7 @@ public class HttpRawLogFilter implements Filter {
 
         @Override
         public ServletInputStream getInputStream() {
-
-            final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(this.getRequestBody().getBytes());
-
+            final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
             return new ServletInputStream() {
                 @Override
                 public boolean isFinished() {
@@ -224,7 +223,7 @@ public class HttpRawLogFilter implements Filter {
 
                 @Override
                 public boolean isReady() {
-                    return false;
+                    return true;
                 }
 
                 @Override
@@ -244,7 +243,7 @@ public class HttpRawLogFilter implements Filter {
         }
 
         String getRequestBody() {
-            return this.requestBody;
+            return new String(bytes, StandardCharsets.UTF_8);
         }
     }
 
@@ -265,7 +264,7 @@ public class HttpRawLogFilter implements Filter {
             return new ServletOutputStream() {
                 @Override
                 public boolean isReady() {
-                    return false;
+                    return true;
                 }
 
                 @Override
