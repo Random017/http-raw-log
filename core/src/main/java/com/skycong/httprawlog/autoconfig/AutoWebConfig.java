@@ -53,6 +53,9 @@ public class AutoWebConfig {
          */
         String headers = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.headers");
         headers = StringUtils.isEmpty(headers) ? "content-type" : headers;
+        // query string 是否需要重新编码
+        String queryStringEncode = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.query-string.encode");
+        queryStringEncode = StringUtils.isEmpty(queryStringEncode) ? "false" : queryStringEncode;
 
         String[] split = urlPatterns.split(",");
         List<String> collect = Arrays.stream(split).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
@@ -61,7 +64,7 @@ public class AutoWebConfig {
 
         String[] split2 = headers.split(",");
         List<String> collect2 = Arrays.stream(split2).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
-        LOGGER.debug("init HttpRawLogFilter urls = {} exclude-suffix = {} ,log headers = {}", Arrays.toString(strings1), urlExcludeSuffix, collect2);
+        LOGGER.debug("init HttpRawLogFilter urls = {} exclude-suffix = {} ,log headers = {} ,queryStringEncode = {}", Arrays.toString(strings1), urlExcludeSuffix, collect2, queryStringEncode);
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new HttpRawLogFilter());
         bean.setOrder(Integer.MIN_VALUE);
@@ -70,6 +73,7 @@ public class AutoWebConfig {
         Map<String, String> map = new HashMap<>();
         map.put("logHeaders", headers);
         map.put("urlExcludeSuffix", urlExcludeSuffix);
+        map.put("queryStringEncode", queryStringEncode);
         bean.setInitParameters(map);
         return bean;
     }
