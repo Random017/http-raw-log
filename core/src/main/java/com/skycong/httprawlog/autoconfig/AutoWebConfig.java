@@ -1,5 +1,6 @@
 package com.skycong.httprawlog.autoconfig;
 
+import com.skycong.httprawlog.Constant;
 import com.skycong.httprawlog.filter.HttpRawLogFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,26 +44,26 @@ public class AutoWebConfig {
          * HttpRawLogFilter 拦截的urls 正则
          * 需要拦截处理的URL
          */
-        String urlPatterns = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.urls");
-        urlPatterns = StringUtils.isEmpty(urlPatterns) ? "/*" : urlPatterns;
+        String urlPatterns = applicationContext.getEnvironment().getProperty(Constant.LOG_URLS);
+        urlPatterns = StringUtils.isEmpty(urlPatterns) ? Constant.STRING4 : urlPatterns;
         // 排除url 的后缀
-        String urlExcludeSuffix = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.url.exclude-suffix");
-        urlExcludeSuffix = StringUtils.isEmpty(urlExcludeSuffix) ? "js,css,html" : urlExcludeSuffix;
+        String urlExcludeSuffix = applicationContext.getEnvironment().getProperty(Constant.LOG_URL_EXCLUDE_SUFFIX);
+        urlExcludeSuffix = StringUtils.isEmpty(urlExcludeSuffix) ? Constant.JS_CSS_HTML : urlExcludeSuffix;
         /*
          * HttpRawLogFilter 打印的请求头字段
          */
-        String headers = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.headers");
-        headers = StringUtils.isEmpty(headers) ? "content-type" : headers;
+        String headers = applicationContext.getEnvironment().getProperty(Constant.LOG_HEADERS);
+        headers = StringUtils.isEmpty(headers) ? Constant.CONTENT_TYPE : headers;
         // query string 是否需要重新编码
-        String queryStringEncode = applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.query-string.encode");
-        queryStringEncode = StringUtils.isEmpty(queryStringEncode) ? "false" : queryStringEncode;
+        String queryStringEncode = applicationContext.getEnvironment().getProperty(Constant.LOG_QUERY_STRING_ENCODE);
+        queryStringEncode = StringUtils.isEmpty(queryStringEncode) ? Boolean.TRUE.toString() : queryStringEncode;
 
-        String[] split = urlPatterns.split(",");
+        String[] split = urlPatterns.split(Constant.SPLIT);
         List<String> collect = Arrays.stream(split).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
         String[] strings1 = new String[collect.size()];
         collect.toArray(strings1);
 
-        String[] split2 = headers.split(",");
+        String[] split2 = headers.split(Constant.SPLIT);
         List<String> collect2 = Arrays.stream(split2).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
         LOGGER.debug("init HttpRawLogFilter urls = {} exclude-suffix = {} ,log headers = {} ,queryStringEncode = {}", Arrays.toString(strings1), urlExcludeSuffix, collect2, queryStringEncode);
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
