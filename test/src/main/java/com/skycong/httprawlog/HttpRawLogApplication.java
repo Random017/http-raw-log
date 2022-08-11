@@ -1,7 +1,7 @@
 package com.skycong.httprawlog;
 
 import com.github.xiaoymin.knife4j.spring.extension.OpenApiExtensionResolver;
-import io.swagger.annotations.ApiOperation;
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +12,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,10 +27,11 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Map;
 
 @SpringBootApplication
 @RestController
@@ -61,9 +63,17 @@ public class HttpRawLogApplication {
     }
 
     @PostMapping("post")
-    Object post(Map<String, Object> map) {
-        LOGGER.debug("" + map);
+    Object post(@RequestBody Pojo pojo) {
+        LOGGER.debug("pojo" + pojo);
         return "OK";
+    }
+
+    @Data
+    static class Pojo {
+        String s1;
+        Integer int2;
+        Boolean adbc;
+
     }
 
     @RequestMapping("all")
@@ -74,10 +84,21 @@ public class HttpRawLogApplication {
 
 
     @PostMapping("upload/{p}")
-    Object upload(@RequestParam(value = "file", required = false) MultipartFile file,
-                  @RequestParam(value = "abc", required = false) String abc,
-                  @PathVariable(value = "p", required = false) String p) {
-        LOGGER.debug("file = {},abc = {},p = {}", file, abc, p);
+    Object upload(
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "file2", required = false) MultipartFile file2,
+            @RequestParam(value = "query1", required = false) String query1,
+            @RequestParam(value = "query2", required = false) String query2,
+            @RequestParam(value = "formdata1", required = false) String formdata1,
+            @RequestParam(value = "formdata2", required = false) String formdata2,
+            @RequestParam(value = "abc", required = false) String abc,
+            @PathVariable(value = "p", required = false) String p) throws IOException {
+        LOGGER.debug("file = {},file2 = {},query1 = {},query12 = {},formdata1 = {},formdata2 = {}, abc = {}"
+                , file, file2, query1, query2, formdata1, formdata2, abc);
+
+        Path tmp = Files.createTempFile("123", "tmp");
+        System.out.println(tmp);
+        file.transferTo(tmp);
         return "OK";
     }
 
