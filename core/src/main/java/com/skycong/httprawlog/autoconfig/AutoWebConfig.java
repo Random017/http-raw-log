@@ -11,7 +11,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -45,18 +44,18 @@ public class AutoWebConfig {
          * 需要拦截处理的URL
          */
         String urlPatterns = applicationContext.getEnvironment().getProperty(Constant.LOG_URLS);
-        urlPatterns = StringUtils.isEmpty(urlPatterns) ? Constant.STRING4 : urlPatterns;
+        urlPatterns = isEmpty(urlPatterns) ? Constant.STRING4 : urlPatterns;
         // 排除url 的后缀
         String urlExcludeSuffix = applicationContext.getEnvironment().getProperty(Constant.LOG_URL_EXCLUDE_SUFFIX);
-        urlExcludeSuffix = StringUtils.isEmpty(urlExcludeSuffix) ? Constant.JS_CSS_HTML : urlExcludeSuffix;
+        urlExcludeSuffix = isEmpty(urlExcludeSuffix) ? Constant.JS_CSS_HTML : urlExcludeSuffix;
         /*
          * HttpRawLogFilter 打印的请求头字段
          */
         String headers = applicationContext.getEnvironment().getProperty(Constant.LOG_HEADERS);
-        headers = StringUtils.isEmpty(headers) ? Constant.CONTENT_TYPE : headers;
+        headers = isEmpty(headers) ? Constant.CONTENT_TYPE : headers;
         // query string 是否需要重新编码
         String queryStringEncode = applicationContext.getEnvironment().getProperty(Constant.LOG_QUERY_STRING_ENCODE);
-        queryStringEncode = StringUtils.isEmpty(queryStringEncode) ? Boolean.TRUE.toString() : queryStringEncode;
+        queryStringEncode = isEmpty(queryStringEncode) ? Boolean.TRUE.toString() : queryStringEncode;
 
         String[] split = urlPatterns.split(Constant.SPLIT);
         List<String> collect = Arrays.stream(split).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
@@ -77,6 +76,10 @@ public class AutoWebConfig {
         map.put("queryStringEncode", queryStringEncode);
         bean.setInitParameters(map);
         return bean;
+    }
+
+    public static boolean isEmpty(String str) {
+        return (str == null || "".equals(str));
     }
 
 }
