@@ -11,7 +11,7 @@ dependencies {
     compileOnly "org.springframework.boot:spring-boot-starter-web:${v}"
 }
 
-def coreVersion = '0.0.5'
+def coreVersion = '0.9.1'
 def coreArtifactId = "http-raw-log"
 
 
@@ -26,7 +26,7 @@ publishing {
             pom {
                 name = 'skycong http raw log kit'
                 description = ' print http raw log'
-                url = 'https://gitee.com/randomsky/http-raw-log'
+                url = 'https://github.com/Random017/http-raw-log'
                 properties = [
                         springBootVersion: "2.3.7.RELEASE"
                 ]
@@ -44,9 +44,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection = 'scm:git:https://gitee.com/randomsky/http-raw-log'
-                    developerConnection = 'scm:git:https://gitee.com/randomsky/http-raw-log.git'
-                    url = 'https://gitee.com/randomsky/http-raw-log'
+                    connection = 'scm:git:https://github.com/Random017/http-raw-log'
+                    developerConnection = 'scm:git:https://github.com/Random017/http-raw-log.git'
+                    url = 'https://github.com/Random017/http-raw-log'
                 }
             }
         }
@@ -71,7 +71,8 @@ publishing {
 signing {
     sign publishing.publications.mavenJava
 }
-def  isReleaseVersion(version){
+
+def isReleaseVersion(version) {
     return !version.endsWith("-SNAPSHOT")
 }
 
