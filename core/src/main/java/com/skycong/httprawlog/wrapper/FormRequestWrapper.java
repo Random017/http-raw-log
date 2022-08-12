@@ -3,8 +3,13 @@ package com.skycong.httprawlog.wrapper;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.StandardMultipartHttpServletRequest;
 
+import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.Part;
+import java.io.IOException;
+import java.util.Collection;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 
@@ -25,9 +30,12 @@ public class FormRequestWrapper extends StandardMultipartHttpServletRequest {
      * @param request         The request to wrap
      * @throws IllegalArgumentException if the request is null
      */
-    public FormRequestWrapper(HttpServletRequest request, boolean parameterEncode) throws MultipartException {
+    public FormRequestWrapper(HttpServletRequest request, boolean parameterEncode) throws MultipartException, ServletException, IOException {
         super(request);
-        map = RequestWrapper.packageParameterMapAll(super.getParameterMap(), RequestWrapper.getQueryStringMap(super.getQueryString()), parameterEncode);
+        Map<String, String[]> fileMap = resolveParamsFromPart();
+        Map<String, String[]> queryStringMap = RequestWrapper.getQueryStringMap(super.getQueryString());
+        queryStringMap.putAll(fileMap);
+        this.map = RequestWrapper.packageParameterMapAll(super.getParameterMap(), queryStringMap, parameterEncode);
     }
 
     /**
@@ -59,6 +67,24 @@ public class FormRequestWrapper extends StandardMultipartHttpServletRequest {
     @Override
     public String[] getParameterValues(String name) {
         return map.get(name);
+    }
+
+    /**
+     * 从 part中解析表单参数
+     */
+    private Map<String, String[]> resolveParamsFromPart() throws ServletException, IOException {
+        HashMap<String, String[]> map = new HashMap<>();
+        Collection<Part> parts = getParts();
+        if (parts == null || parts.isEmpty())
+            return map;
+        for (Part part : parts) {
+            String contentType = part.getContentType();
+            if (contentType == null || contentType.isEmpty()) continue;
+            String k = part.getName();
+            String v = String.format("[filename=%s ,content-type=%s ,filesize=%d]", part.getSubmittedFileName(), contentType, part.getSize());
+            map.put(k, new String[]{v});
+        }
+        return map;
     }
 
 }
