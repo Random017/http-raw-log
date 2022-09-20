@@ -56,7 +56,7 @@ public class HttpRawLogApplication {
     Object get(@RequestParam(value = "abc", required = false) String abc,
                @PathVariable(value = "p", required = false) String p) {
         LOGGER.debug("abc = {},p = {}", abc, p);
-        return getTime();
+        return getTime() + "\n" + abc + "\n" + p;
     }
 
     String getTime() {
@@ -66,7 +66,7 @@ public class HttpRawLogApplication {
     @PostMapping("post")
     Object post(@RequestBody Pojo pojo) {
         LOGGER.debug("pojo" + pojo);
-        return "OK";
+        return "OK:" + pojo.toString();
     }
 
     @Data
@@ -102,7 +102,7 @@ public class HttpRawLogApplication {
             System.out.println(tmp);
             file.transferTo(tmp);
         }
-        return "OK";
+        return "OK:\n" + file + "\n" + file2 + "\n" + query1 + "\n" + query2 + "\n" + formdata1 + "\n" + formdata2 + "\n" + abc + "\n" + p;
     }
 
 
@@ -155,7 +155,7 @@ public class HttpRawLogApplication {
         filter.setIncludeClientInfo(true);
         filter.setIncludeHeaders(true);
         filter.setIncludePayload(true);
-       return filter;
+        return filter;
     }
 
 }

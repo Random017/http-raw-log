@@ -1,12 +1,49 @@
-POST http://localhost:80/api/item
-Content-Type: application/x-www-form-urlencoded
+### get 请求测试
+GET http://127.0.0.1:8943/test/get/12341234?abc=abc字
 
-id=99&content=new-element
-
-###
+### post 表单请求
 POST http://127.0.0.1:8943/test/upload/werq
 Content-Type: application/x-www-form-urlencoded
 
 query1=123&query2=艾地苯醌@￥@&query1=3434
 
+
+### post 表单请求文件
+POST http://127.0.0.1:8943/test/upload/werq
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="formdata1"
+Content-Type:
+
+Name发送撒旦飞洒
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="data.json"
+Content-Type: application/json
+
+安防撒旦法撒旦飞洒F
+--WebAppBoundary--
+
+
 ###
+POST http://127.0.0.1:8943/test/upload/werq
+Content-Type: multipart/form-data;charset=utf8; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="formdata1"
+Content-Type:
+
+field-value发的
+--WebAppBoundary--
+
+###
+
+### post json 请求
+POST http://127.0.0.1:8943/test/post
+Content-Type: application/json
+
+{
+  "s1": "test_39df329a3179字",
+  "int2": 45,
+  "adbc": false
+}
