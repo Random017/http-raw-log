@@ -53,9 +53,9 @@ public class AutoWebConfig {
          */
         String headers = applicationContext.getEnvironment().getProperty(Constant.LOG_HEADERS);
         headers = isEmpty(headers) ? Constant.CONTENT_TYPE : headers;
-        // query string 是否需要重新编码
-        String queryStringEncode = applicationContext.getEnvironment().getProperty(Constant.LOG_QUERY_STRING_ENCODE);
-        queryStringEncode = isEmpty(queryStringEncode) ? Boolean.TRUE.toString() : queryStringEncode;
+        // form-data 是否需要重新编码
+        String formDataEncode = applicationContext.getEnvironment().getProperty(Constant.LOG_FORM_DATA_ENCODE);
+        formDataEncode = isEmpty(formDataEncode) ? "0" : formDataEncode;
 
         String[] split = urlPatterns.split(Constant.SPLIT);
         List<String> collect = Arrays.stream(split).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
@@ -64,7 +64,7 @@ public class AutoWebConfig {
 
         String[] split2 = headers.split(Constant.SPLIT);
         List<String> collect2 = Arrays.stream(split2).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
-        LOGGER.debug("init HttpRawLogFilter urls = {} exclude-suffix = {} ,log headers = {} ,queryStringEncode = {}", Arrays.toString(strings1), urlExcludeSuffix, collect2, queryStringEncode);
+        LOGGER.debug("init HttpRawLogFilter urls = {} exclude-suffix = {} ,log headers = {} ,formDataEncode = {}", Arrays.toString(strings1), urlExcludeSuffix, collect2, formDataEncode);
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new HttpRawLogFilter());
         bean.setOrder(Integer.MIN_VALUE);
@@ -73,7 +73,7 @@ public class AutoWebConfig {
         Map<String, String> map = new HashMap<>();
         map.put("logHeaders", headers);
         map.put("urlExcludeSuffix", urlExcludeSuffix);
-        map.put("queryStringEncode", queryStringEncode);
+        map.put("formDataEncodeFlag", formDataEncode);
         bean.setInitParameters(map);
         return bean;
     }

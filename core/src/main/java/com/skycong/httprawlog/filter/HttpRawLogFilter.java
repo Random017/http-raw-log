@@ -54,9 +54,9 @@ public class HttpRawLogFilter implements Filter {
     private String[] logHeaders;
     private List<String> urlExcludeSuffix;
     /**
-     * query string 是否需要重新编码
+     * form-data  是否需要重新编码(0: 自动判断，1：始终需要编码，2：始终不编码)
      */
-    private boolean queryStringEncode;
+    private int formDataEncodeFlag;
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -72,7 +72,7 @@ public class HttpRawLogFilter implements Filter {
         List<String> strings = Arrays.stream(split2).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
         this.logHeaders = new String[strings.size()];
         strings.toArray(this.logHeaders);
-        queryStringEncode = Boolean.parseBoolean(filterConfig.getInitParameter("queryStringEncode"));
+        formDataEncodeFlag = Integer.parseInt(filterConfig.getInitParameter("formDataEncodeFlag"));
     }
 
     @Override
@@ -125,12 +125,12 @@ public class HttpRawLogFilter implements Filter {
         boolean isMultipart = contentType != null && contentType.toLowerCase().startsWith(Constant.FORM_DATA);
         if (isMultipart) {
             // 是 multipart/form-data 个请求，参考：org.springframework.web.servlet.DispatcherServlet#doDispatch
-            FormRequestWrapper formRequestWrapper = new FormRequestWrapper(request, queryStringEncode);
+            FormRequestWrapper formRequestWrapper = new FormRequestWrapper(request, formDataEncodeFlag);
             queryStringLog = RequestWrapper.queryStringLog(formRequestWrapper.getParameterMap());
             requestBody = "";
             chain.doFilter(formRequestWrapper, responseWrapper);
         } else {
-            RequestWrapper requestWrapper = new RequestWrapper(request, queryStringEncode);
+            RequestWrapper requestWrapper = new RequestWrapper(request, formDataEncodeFlag);
             queryStringLog = RequestWrapper.queryStringLog(requestWrapper.getParameterMap());
             requestBody = requestWrapper.getRequestBodyLogString();
             chain.doFilter(requestWrapper, responseWrapper);

@@ -7,6 +7,7 @@ package com.skycong.httprawlog;
 public interface Constant {
 
     String UTF8 = "utf-8";
+    String DEFAULT_CHARACTER_ENCODING = "ISO-8859-1";
 
     /**
      * 表单请求，请求体如下
@@ -46,7 +47,9 @@ public interface Constant {
     String CONTENT_TYPE = "content-type";
     String LOG_URLS = "com.skycong.http-raw.log.urls";
     String LOG_URL_EXCLUDE_SUFFIX = "com.skycong.http-raw.log.url.exclude-suffix";
+    @Deprecated
     String LOG_QUERY_STRING_ENCODE = "com.skycong.http-raw.log.query-string.encode";
+    String LOG_FORM_DATA_ENCODE = "com.skycong.http-raw.log.form-data.encode";
     String LOG_HEADERS = "com.skycong.http-raw.log.headers";
     String STRING4 = "/*";
     String JS_CSS_HTML = "js,css,html";

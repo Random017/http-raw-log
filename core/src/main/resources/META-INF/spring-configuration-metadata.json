@@ -25,10 +25,10 @@
       "description": "需要打印http-raw-log的请求头key，多个使用‘,’ 分隔，默认 content-type."
     },
     {
-      "name": "com.skycong.http-raw.log.query-string.encode",
-      "type": "java.lang.Boolean",
-      "defaultValue": "true",
-      "description": "query string 是否需要使用utf-8重新编码，默认true."
+      "name": "com.skycong.http-raw.log.form-data.encode",
+      "type": "java.lang.Integer",
+      "defaultValue": "0",
+      "description": "form-data 是否需要使用utf-8重新编码（0: 自动判断，1：始终需要编码，2：始终不编码）默认 0."
     }
   ]
 }

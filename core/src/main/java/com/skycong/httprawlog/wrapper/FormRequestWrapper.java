@@ -1,5 +1,6 @@
 package com.skycong.httprawlog.wrapper;
 
+import com.skycong.httprawlog.Constant;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.StandardMultipartHttpServletRequest;
 
@@ -26,16 +27,16 @@ public class FormRequestWrapper extends StandardMultipartHttpServletRequest {
     /**
      * Constructs a request object wrapping the given request.
      *
-     * @param parameterEncode 表单数据是否需要重新编码 ，StandardCharsets.ISO_8859_1  ==> StandardCharsets.UTF_8
-     * @param request         The request to wrap
+     * @param formDataEncodeFlag form-data  是否需要重新编码(0: 自动判断，1：始终需要编码，2：始终不编码)
+     * @param request            The request to wrap
      * @throws IllegalArgumentException if the request is null
      */
-    public FormRequestWrapper(HttpServletRequest request, boolean parameterEncode) throws MultipartException, ServletException, IOException {
+    public FormRequestWrapper(HttpServletRequest request, int formDataEncodeFlag) throws MultipartException, ServletException, IOException {
         super(request);
         Map<String, String[]> fileMap = resolveParamsFromPart();
         Map<String, String[]> queryStringMap = RequestWrapper.getQueryStringMap(super.getQueryString());
         queryStringMap.putAll(fileMap);
-        this.map = RequestWrapper.packageParameterMapAll(super.getParameterMap(), queryStringMap, parameterEncode);
+        this.map = RequestWrapper.packageParameterMapAll(super.getParameterMap(), queryStringMap, isParameterEncode(formDataEncodeFlag));
     }
 
     /**
@@ -67,6 +68,24 @@ public class FormRequestWrapper extends StandardMultipartHttpServletRequest {
     @Override
     public String[] getParameterValues(String name) {
         return map.get(name);
+    }
+
+
+    /**
+     * form-data 参数是否需要重新编码，依据 getCharacterEncoding 判断
+     *
+     * @param formDataEncodeFlag form-data  是否需要重新编码(0: 自动判断，1：始终需要编码，2：始终不编码)
+     * @return true 是，false 否
+     */
+    public boolean isParameterEncode(int formDataEncodeFlag) {
+        if (formDataEncodeFlag == 1) {
+            return true;
+        } else if (formDataEncodeFlag == 2) {
+            return false;
+        } else {
+            String enc = super.getCharacterEncoding();
+            return enc == null || enc.equalsIgnoreCase(Constant.DEFAULT_CHARACTER_ENCODING);
+        }
     }
 
     /**

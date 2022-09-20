@@ -34,14 +34,14 @@ public class RequestWrapper extends HttpServletRequestWrapper {
     /**
      * Constructs a request object wrapping the given request.
      *
-     * @param parameterEncode 表单数据是否需要重新编码 ，StandardCharsets.ISO_8859_1  ==> StandardCharsets.UTF_8
-     * @param request         The request to wrap
+     * @param formDataEncodeFlag form-data  是否需要重新编码(0: 自动判断，1：始终需要编码，2：始终不编码)
+     * @param request            The request to wrap
      * @throws IllegalArgumentException if the request is null
      */
-    public RequestWrapper(HttpServletRequest request, boolean parameterEncode) {
+    public RequestWrapper(HttpServletRequest request, int formDataEncodeFlag) {
         super(request);
         // 必须先读取 ParameterMap ，后读取 request.getInputStream() link：https://www.jianshu.com/p/0586e757e0af
-        map = packageParameterMapAll(super.getParameterMap(), getQueryStringMap(super.getQueryString()), parameterEncode);
+        map = packageParameterMapAll(super.getParameterMap(), getQueryStringMap(super.getQueryString()), isParameterEncode(formDataEncodeFlag));
         try {
             // 复制request body  inputStream
             bytes = StreamUtils.copyToByteArray(request.getInputStream());
@@ -117,6 +117,23 @@ public class RequestWrapper extends HttpServletRequestWrapper {
     }
 
     /**
+     * form-data 参数是否需要重新编码，依据 getCharacterEncoding 判断
+     *
+     * @param formDataEncodeFlag form-data  是否需要重新编码(0: 自动判断，1：始终需要编码，2：始终不编码)
+     * @return true 是，false 否
+     */
+    public boolean isParameterEncode(int formDataEncodeFlag) {
+        if (formDataEncodeFlag == 1) {
+            return true;
+        } else if (formDataEncodeFlag == 2) {
+            return false;
+        } else {
+            String enc = super.getCharacterEncoding();
+            return enc == null || enc.equalsIgnoreCase(Constant.DEFAULT_CHARACTER_ENCODING);
+        }
+    }
+
+    /**
      * 获取request body log string
      */
     public String getRequestBodyLogString() {
@@ -177,21 +194,20 @@ public class RequestWrapper extends HttpServletRequestWrapper {
     }
 
     /**
-     * 获取全部参数map
+     * 获取全部参数map，包含form-data数据和query string参数
      *
      * @param originParameterMap 源getParameterMap
      * @param queryStringMap     queryStringMap
-     * @param parameterEncode    parameterEncode
+     * @param parameterEncode    parameterEncode {{@link #isParameterEncode(int)}}
      * @return packageParameterMapAll
      */
     public static Map<String, String[]> packageParameterMapAll(Map<String, String[]> originParameterMap, Map<String, String[]> queryStringMap, boolean parameterEncode) {
-        // query string 使用URLEncode 编码规则
-        // form-data 使用的是 ISO_8859_1 编码
-        // 原始表单参数，包含query string 的参数，但是query string 使用的是 URLEncode，如果直接使用 ISO_8859_1 to UTF-8 的话会造成乱码
-        // 所以需要将 query string map 的值重新putAll 进来
+        // 参数map包含form-data参数和query string 参数
+        // form-data依据 getCharacterEncoding 来判断是否需要重新使用utf-8编码，query string 使用URLDecode
         Map<String, String[]> newMap = new HashMap<>();
         for (String key : originParameterMap.keySet()) {
             String[] values = originParameterMap.get(key);
+            // form-data 默认使用的是 ISO_8859_1 编码，需要重新编码，如果content-type 中指定字符类型，例如：application/x-www-form-urlencoded;charset=utf-8，则使用utf-8编码
             if (parameterEncode) {
                 for (int i = 0; i < values.length; i++) {
                     values[i] = new String(values[i].getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
@@ -199,6 +215,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
             }
             newMap.put(key, values);
         }
+        // 原始表单参数，包含query string 的参数，但是query string 使用的是 URLEncode，如果直接使用 ISO_8859_1 to UTF-8 的话会造成乱码
         // 将 query string map 的值重新put
         newMap.putAll(queryStringMap);
         return newMap;
@@ -215,6 +232,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
         Map<String, String[]> map = new HashMap<>();
         if (queryString == null || queryString.isEmpty()) return map;
         try {
+            // query string 使用URL encode，需要解码
             queryString = URLDecoder.decode(queryString, Constant.UTF8);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
