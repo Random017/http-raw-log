@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import org.springframework.web.multipart.MultipartFile;
 import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
@@ -96,9 +97,11 @@ public class HttpRawLogApplication {
         LOGGER.debug("file = {},file2 = {},query1 = {},query12 = {},formdata1 = {},formdata2 = {}, abc = {}"
                 , file, file2, query1, query2, formdata1, formdata2, abc);
 
-        Path tmp = Files.createTempFile("123", "tmp");
-        System.out.println(tmp);
-        file.transferTo(tmp);
+        if (file != null) {
+            Path tmp = Files.createTempFile("123", "tmp");
+            System.out.println(tmp);
+            file.transferTo(tmp);
+        }
         return "OK";
     }
 
@@ -144,4 +147,15 @@ public class HttpRawLogApplication {
                 .paths(PathSelectors.any())
                 .build().extensions(openApiExtensionResolver.buildExtensions(Docket.DEFAULT_GROUP_NAME));
     }
+
+    @Bean
+    public CommonsRequestLoggingFilter commonsRequestLoggingFilter() {
+        CommonsRequestLoggingFilter filter = new CommonsRequestLoggingFilter();
+        filter.setIncludeQueryString(true);
+        filter.setIncludeClientInfo(true);
+        filter.setIncludeHeaders(true);
+        filter.setIncludePayload(true);
+       return filter;
+    }
+
 }

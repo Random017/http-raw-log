@@ -1,0 +1,12 @@
+POST http://localhost:80/api/item
+Content-Type: application/x-www-form-urlencoded
+
+id=99&content=new-element
+
+###
+POST http://127.0.0.1:8943/test/upload/werq
+Content-Type: application/x-www-form-urlencoded
+
+query1=123&query2=艾地苯醌@￥@&query1=3434
+
+###
