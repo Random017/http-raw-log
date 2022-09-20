@@ -13,12 +13,12 @@
   <dependency>
     <groupId>com.skycong</groupId>
     <artifactId>http-raw-log</artifactId>
-    <version>0.9.1</version>
+    <version>0.9.2</version>
   </dependency>
   
   #gradle#
   dependencies {
-    compile 'com.skycong:http-raw-log:0.9.1'
+    compile 'com.skycong:http-raw-log:0.9.2'
   }
   
   ```
@@ -37,8 +37,8 @@
   # 需要打印http-raw-log的请求头key，多个使用‘,’ 分隔，默认 content-type
   # 需要打印http-raw-log的响应头key，当且仅当不为空时才打印，多个使用‘,’ 分隔，默认 content-type
   com.skycong.http-raw.log.headers=content-type,cookie,host,accept-language,referer,user-agent
-  # form data 中的数据是否需要使用utf-8重新编码，默认true
-  com.skycong.http-raw.log.query-string.encode=true
+  # form-data 是否需要使用utf-8重新编码（0: 自动判断，1：始终需要编码，2：始终不编码）默认 0.
+  com.skycong.http-raw.log.form-data.encode=0
 
   ```
 
