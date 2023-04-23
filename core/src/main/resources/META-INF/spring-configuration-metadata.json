@@ -13,10 +13,20 @@
       "description": "拦截打印的url正则，参考 Filter UrlPatterns 格式，多个URL时使用‘,’ 分隔，默认 /*."
     },
     {
+      "name": "com.skycong.http-raw.log.url.exclude",
+      "type": "java.lang.String",
+      "defaultValue": "",
+      "description": "需要排除的URI，参考org.springframework.util.AntPathMatcher实现, 示例/test/*, 多个URL时使用‘,’ 分隔."
+    },
+    {
       "name": "com.skycong.http-raw.log.url.exclude-suffix",
       "type": "java.lang.String",
       "defaultValue": "js,css,html",
-      "description": "URI 排除的后缀（eg： abc.html 的后缀是 html），多个URL时使用‘,’ 分隔，默认 js,css,html."
+      "description": "URI 排除的后缀（eg： abc.html 的后缀是 html），多个URL时使用‘,’ 分隔，默认 js,css,html.",
+      "deprecation": {
+        "level": "error",
+        "replacement": "com.skycong.http-raw.log.url.exclude"
+      }
     },
     {
       "name": "com.skycong.http-raw.log.headers",

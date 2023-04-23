@@ -37,6 +37,7 @@ public interface Constant {
      */
     String FORM_URLENCODED = "application/x-www-form-urlencoded";
 
+    String EMPTY = "";
     String STRING0 = "&";
     String SPLIT = ",";
     String EQ = "=";
@@ -46,6 +47,7 @@ public interface Constant {
     String APPLICATION_OCTET_STREAM = "APPLICATION/OCTET-STREAM";
     String CONTENT_TYPE = "content-type";
     String LOG_URLS = "com.skycong.http-raw.log.urls";
+    String LOG_URL_EXCLUDE = "com.skycong.http-raw.log.url.exclude";
     String LOG_URL_EXCLUDE_SUFFIX = "com.skycong.http-raw.log.url.exclude-suffix";
     @Deprecated
     String LOG_QUERY_STRING_ENCODE = "com.skycong.http-raw.log.query-string.encode";

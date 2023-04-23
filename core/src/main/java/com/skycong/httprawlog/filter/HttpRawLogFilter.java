@@ -7,6 +7,7 @@ import com.skycong.httprawlog.wrapper.RequestWrapper;
 import com.skycong.httprawlog.wrapper.ResponseWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.AntPathMatcher;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -52,7 +53,19 @@ public class HttpRawLogFilter implements Filter {
      * 需要打印的请求头
      */
     private String[] logHeaders;
+
+    private List<String> urlExcludePatterns;
+    private final AntPathMatcher urlExcludePattern = new AntPathMatcher();
+    ;
+
+    /**
+     * 需要排除的后缀
+     *
+     * @deprecated v0.9.4 {@link #urlExcludePattern}
+     */
+    @Deprecated
     private List<String> urlExcludeSuffix;
+
     /**
      * form-data  是否需要重新编码(0: 自动判断，1：始终需要编码，2：始终不编码)
      */
@@ -73,6 +86,28 @@ public class HttpRawLogFilter implements Filter {
         this.logHeaders = new String[strings.size()];
         strings.toArray(this.logHeaders);
         formDataEncodeFlag = Integer.parseInt(filterConfig.getInitParameter("formDataEncodeFlag"));
+
+        String s1 = filterConfig.getInitParameter("urlExcludePatterns");
+        String[] split3 = s1.split(Constant.SPLIT);
+        urlExcludePatterns = Arrays.stream(split3).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
+        if (urlExcludePatterns.isEmpty()) urlExcludePatterns = null;
+    }
+
+    /**
+     * 给定一个请求 URI，判断其是否在排除的URL列表中
+     *
+     * @param uri 给定的URI
+     * @return true 在排除URL列表中，false 不在
+     */
+    private boolean excludeMatch(String uri) {
+        if (urlExcludePatterns == null)
+            return false;
+        for (String excludePattern : urlExcludePatterns) {
+            if (urlExcludePattern.match(excludePattern, uri)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -84,6 +119,13 @@ public class HttpRawLogFilter implements Filter {
         if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
             HttpServletRequest request1 = (HttpServletRequest) request;
             String requestURI = request1.getRequestURI();
+            // 判断uri 是否在需要排除的URL列表中
+            if (excludeMatch(requestURI)) {
+                LOGGER.debug("request uri:{} in exclude urls skip it.", requestURI);
+                chain.doFilter(request, response);
+                return;
+            }
+
             int i = requestURI.lastIndexOf('.');
             // 不是第一个也不是最后一个字符
             if (i > 0 && i != requestURI.length() - 1) {

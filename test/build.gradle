@@ -21,7 +21,7 @@ dependencies {
 
     compile project(':core')
     implementation project(':redis-web-admin')
-//    compile project(':log-record')
+    compile project(':log-record')
 // test auto configuration
     implementation "com.skycong:log-record:0.0.1"
 }

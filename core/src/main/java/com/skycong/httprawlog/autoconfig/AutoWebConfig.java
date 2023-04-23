@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @Lazy
 public class AutoWebConfig {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AutoWebConfig.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpRawLogFilter.class);
 
     /**
      * ${com.skycong.http-raw.log} 该数据配置为true 开启，默认开启
@@ -45,6 +45,16 @@ public class AutoWebConfig {
          */
         String urlPatterns = applicationContext.getEnvironment().getProperty(Constant.LOG_URLS);
         urlPatterns = isEmpty(urlPatterns) ? Constant.STRING4 : urlPatterns;
+        String[] split = urlPatterns.split(Constant.SPLIT);
+        List<String> collect = Arrays.stream(split).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
+        String[] strings1 = new String[collect.size()];
+        collect.toArray(strings1);
+        /*
+         * 需要排除的URL
+         */
+        String urlExcludePatterns = applicationContext.getEnvironment().getProperty(Constant.LOG_URL_EXCLUDE);
+        urlExcludePatterns = isEmpty(urlExcludePatterns) ? Constant.EMPTY : urlExcludePatterns;
+
         // 排除url 的后缀
         String urlExcludeSuffix = applicationContext.getEnvironment().getProperty(Constant.LOG_URL_EXCLUDE_SUFFIX);
         urlExcludeSuffix = isEmpty(urlExcludeSuffix) ? Constant.JS_CSS_HTML : urlExcludeSuffix;
@@ -57,14 +67,10 @@ public class AutoWebConfig {
         String formDataEncode = applicationContext.getEnvironment().getProperty(Constant.LOG_FORM_DATA_ENCODE);
         formDataEncode = isEmpty(formDataEncode) ? "0" : formDataEncode;
 
-        String[] split = urlPatterns.split(Constant.SPLIT);
-        List<String> collect = Arrays.stream(split).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
-        String[] strings1 = new String[collect.size()];
-        collect.toArray(strings1);
-
         String[] split2 = headers.split(Constant.SPLIT);
         List<String> collect2 = Arrays.stream(split2).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
-        LOGGER.debug("init HttpRawLogFilter urls = {} exclude-suffix = {} ,log headers = {} ,formDataEncode = {}", Arrays.toString(strings1), urlExcludeSuffix, collect2, formDataEncode);
+        LOGGER.debug("init HttpRawLogFilter urls = {} ,excludeUrls = {} ,exclude-suffix = {} ,log headers = {} ,formDataEncode = {}",
+                Arrays.toString(strings1), urlExcludePatterns, urlExcludeSuffix, collect2, formDataEncode);
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new HttpRawLogFilter());
         bean.setOrder(Integer.MIN_VALUE);
@@ -72,6 +78,7 @@ public class AutoWebConfig {
         bean.setName("rawLogFilter");
         Map<String, String> map = new HashMap<>();
         map.put("logHeaders", headers);
+        map.put("urlExcludePatterns", urlExcludePatterns);
         map.put("urlExcludeSuffix", urlExcludeSuffix);
         map.put("formDataEncodeFlag", formDataEncode);
         bean.setInitParameters(map);
