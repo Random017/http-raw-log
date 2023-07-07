@@ -46,8 +46,7 @@ import java.util.stream.Collectors;
  */
 public class HttpRawLogFilter implements Filter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(HttpRawLogFilter.class);
-
+    private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
     /**
      * 需要打印的请求头
@@ -212,8 +211,8 @@ public class HttpRawLogFilter implements Filter {
         String sb = "\n --------------> http raw data sessionId:\t" + sessionId +
                 "\n[url]:" + method + "\t" + requestURL +
                 "\n[headers]:" + requestHeaders +
-                "\n[request data]:\t" + requestLog +
-                "\n[response data]:httpStatus=" + httpStatus + "\t responseHeaders=" + responseHeaders + "\n" + responseBody + "\n";
+                "\n[request data]:" + requestLog +
+                "\n[response data]:httpStatus=" + httpStatus + "\tresponseHeaders=" + responseHeaders + "\n" + responseBody + "\n";
         LOGGER.debug(sb);
     }
 
