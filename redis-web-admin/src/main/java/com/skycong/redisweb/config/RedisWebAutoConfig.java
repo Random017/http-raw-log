@@ -34,7 +34,6 @@ public class RedisWebAutoConfig implements WebMvcConfigurer {
     ///////////////////////////////////////////////////////////////////////////
 
     public static final String REDIS_WEB_ADMIN_TEMPLATE = "redisWebAdminTemplate";
-    public static final Charset UTF8 = StandardCharsets.UTF_8;
 
 
     /**

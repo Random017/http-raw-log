@@ -1,6 +1,6 @@
 package com.skycong.httprawlog;
 
-import com.github.xiaoymin.knife4j.spring.extension.OpenApiExtensionResolver;
+import com.skycong.httprawlog.config.Filter1;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,12 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.multipart.MultipartFile;
-import springfox.documentation.builders.PathSelectors;
-import springfox.documentation.builders.RequestHandlerSelectors;
-import springfox.documentation.service.ApiInfo;
-import springfox.documentation.spi.DocumentationType;
-import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
+
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -41,8 +36,9 @@ import java.util.Locale;
 @RestController
 @RequestMapping("test")
 @ComponentScan(basePackages = "com.skycong")
-@EnableSwagger2WebMvc
 public class HttpRawLogApplication {
+
+
 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpRawLogApplication.class);
@@ -127,30 +123,6 @@ public class HttpRawLogApplication {
         response.getOutputStream().flush();
     }
 
-
-    @Bean(value = "defaultApi2")
-    public Docket defaultApi2(@Autowired OpenApiExtensionResolver openApiExtensionResolver) {
-        return new Docket(DocumentationType.SWAGGER_2)
-                // .consumes(.newHashSet("application/x-www-form-urlencoded", "application/form-data", "application/json"))
-                // .produces(Sets.newHashSet("application/json"))
-                .apiInfo(ApiInfo.DEFAULT)
-                //分组名称
-                .groupName(Docket.DEFAULT_GROUP_NAME)
-                // .globalResponseMessage(HttpMethod.GET, Lists.newArrayList(new Response(
-                //                 "401", "无权限", false, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>()
-                //         ), new Response(
-                //                 "405", "请求方法错误", false, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>()
-                //         ))
-                // )
-                .select()
-                //这里指定Controller扫描包路径
-                // .apis(RequestHandlerSelectors.withMethodAnnotation(ApiOperation.class))
-                // .apis(RequestHandlerSelectors.withMethodAnnotation(RequestMapping.class))
-                .apis(RequestHandlerSelectors.basePackage("com.skycong.redisweb.controller"))
-                .paths(PathSelectors.any())
-                .build().extensions(openApiExtensionResolver.buildExtensions(Docket.DEFAULT_GROUP_NAME));
-    }
-
     @Bean
     public CommonsRequestLoggingFilter commonsRequestLoggingFilter() {
         CommonsRequestLoggingFilter filter = new CommonsRequestLoggingFilter();
@@ -169,6 +141,12 @@ public class HttpRawLogApplication {
     @Bean
     public ShallowEtagHeaderFilter shallowEtagHeaderFilter() {
         return new ShallowEtagHeaderFilter();
+    }
+
+
+    @Bean
+    public Filter1 filter1(){
+        return new Filter1();
     }
 
 }
