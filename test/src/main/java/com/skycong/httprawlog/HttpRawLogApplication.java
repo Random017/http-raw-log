@@ -1,10 +1,8 @@
 package com.skycong.httprawlog;
 
-import com.skycong.httprawlog.config.Filter1;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.filter.ApplicationContextHeaderFilter;
@@ -22,7 +20,6 @@ import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.multipart.MultipartFile;
 
-
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -31,14 +28,13 @@ import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.Callable;
 
 @SpringBootApplication
 @RestController
 @RequestMapping("test")
 @ComponentScan(basePackages = "com.skycong")
 public class HttpRawLogApplication {
-
-
 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpRawLogApplication.class);
@@ -57,6 +53,17 @@ public class HttpRawLogApplication {
         LOGGER.debug("abc = {},p = {}", abc, p);
         return getTime() + "\n" + abc + "\n" + p;
     }
+
+    @GetMapping("getCall/{p}")
+    Callable<Object> getCall(@RequestParam(value = "abc", required = false) String abc,
+                             @PathVariable(value = "p", required = false) String p) {
+        return () -> {
+            System.out.println(Thread.currentThread().getName());
+            LOGGER.debug("abc = {},p = {}", abc, p);
+            return getTime() + "\n" + abc + "\n" + p;
+        };
+    }
+
 
     String getTime() {
         return new SimpleDateFormat("G yyyy-MM-dd(第w周) a hh:mm:ss.SSS 'GMT' Z", Locale.SIMPLIFIED_CHINESE).format(new Date());
@@ -143,10 +150,5 @@ public class HttpRawLogApplication {
         return new ShallowEtagHeaderFilter();
     }
 
-
-    @Bean
-    public Filter1 filter1(){
-        return new Filter1();
-    }
 
 }
