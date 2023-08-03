@@ -15,17 +15,12 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-aop:${v}"
     testCompile "org.springframework.boot:spring-boot-starter-test:${v}"
     implementation "org.springframework.boot:spring-boot-starter-data-redis:${v}"
-//    implementation 'com.github.xiaoymin:knife4j-spring-boot-starter:2.0.7'
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.12'
     compile group: 'org.projectlombok', name: 'lombok', version: '1.18.22'
     implementation 'org.springframework.boot:spring-boot-starter-test'
 
     compile project(':core')
-//    implementation project(':redis-web-admin')
-    compile project(':log-record')
-// test auto configuration
-    implementation "com.skycong:log-record:0.0.1"
 }
 
 configurations {

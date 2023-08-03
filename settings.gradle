@@ -1,5 +1,5 @@
 rootProject.name = 'http-raw-log'
 include 'core'
-include 'log-record'
+//include 'log-record'
 include 'test'
-include 'redis-web-admin'
+//include 'redis-web-admin'
