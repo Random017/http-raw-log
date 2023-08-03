@@ -3,6 +3,7 @@ apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 
 dependencies {
+
     def v = "2.3.7.RELEASE"
     try {
         v = java.util.Optional.ofNullable(springBootVersion).orElse(v)
@@ -18,9 +19,10 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.12'
     compile group: 'org.projectlombok', name: 'lombok', version: '1.18.22'
+    implementation 'org.springframework.boot:spring-boot-starter-test'
 
     compile project(':core')
-    implementation project(':redis-web-admin')
+//    implementation project(':redis-web-admin')
     compile project(':log-record')
 // test auto configuration
     implementation "com.skycong:log-record:0.0.1"

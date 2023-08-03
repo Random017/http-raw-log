@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -188,7 +189,8 @@ public class HttpRawLogFilter implements Filter {
             String s = "resp type : application/octet stream, so not log , response body size = " + bytes.length;
             responseBody = new String(s.getBytes());
         } else {
-            responseBody = new String(bytes);
+            String charset = Optional.ofNullable(response.getCharacterEncoding()).orElse("utf8");
+            responseBody = new String(bytes, charset);
         }
         httpStatus = String.valueOf(response.getStatus());
         Map<String, String> respHeadMap = new HashMap<>(logHeaders.length);

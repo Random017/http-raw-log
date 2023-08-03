@@ -3,6 +3,7 @@ package com.skycong.httprawlog;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.filter.ApplicationContextHeaderFilter;
@@ -47,11 +48,13 @@ public class HttpRawLogApplication {
     /**
      * 测试普通get
      */
-    @GetMapping("get/{p}")
-    Object get(@RequestParam(value = "abc", required = false) String abc,
+    @GetMapping(value = "get/{p}")
+    String get(@RequestParam(value = "abc", required = false) String abc,
                @PathVariable(value = "p", required = false) String p) {
         LOGGER.debug("abc = {},p = {}", abc, p);
-        return getTime() + "\n" + abc + "\n" + p;
+        String s = getTime() + "\n" + abc + "\n" + p;
+        LOGGER.info("s = {}", s);
+        return s;
     }
 
     @GetMapping("getCall/{p}")
