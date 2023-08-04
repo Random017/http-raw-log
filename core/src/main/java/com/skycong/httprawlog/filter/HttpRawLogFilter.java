@@ -18,11 +18,11 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -176,8 +176,7 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
             String s = "resp type : application/octet stream, so not log , response body size = " + bytes.length;
             responseBody = new String(s.getBytes());
         } else {
-            String charset = Optional.ofNullable(response.getCharacterEncoding()).orElse("utf8");
-            responseBody = new String(bytes, charset);
+            responseBody = new String(bytes, StandardCharsets.UTF_8);
         }
         httpStatus = String.valueOf(response.getStatus());
         Map<String, String> respHeadMap = new HashMap<>(logHeaders.size());
