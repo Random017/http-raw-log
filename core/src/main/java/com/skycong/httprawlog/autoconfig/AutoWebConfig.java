@@ -1,11 +1,12 @@
 package com.skycong.httprawlog.autoconfig;
 
 import com.skycong.httprawlog.Constant;
+import com.skycong.httprawlog.api.HistoryApi;
+import com.skycong.httprawlog.api.HistoryRecord;
 import com.skycong.httprawlog.filter.HttpRawLogFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -27,8 +28,6 @@ import java.util.stream.Collectors;
 @Lazy
 public class AutoWebConfig {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(HttpRawLogFilter.class);
-
     /**
      * ${com.skycong.http-raw.log} 该数据配置为true 开启，默认开启
      * 打印全局的http raw log 拦截器
@@ -38,7 +37,9 @@ public class AutoWebConfig {
      */
     @Bean
     @ConditionalOnExpression("${com.skycong.http-raw.log:true}")
-    public FilterRegistrationBean<HttpRawLogFilter> filterRegistrationBean(@Autowired ApplicationContext applicationContext) {
+    public FilterRegistrationBean<HttpRawLogFilter> filterRegistrationBean(@Autowired ApplicationContext applicationContext,
+                                                                           @Autowired(required = false) HistoryRecord historyRecord) {
+
         /*
          * HttpRawLogFilter 拦截的urls 正则
          * 需要拦截处理的URL
@@ -67,15 +68,11 @@ public class AutoWebConfig {
         String formDataEncode = applicationContext.getEnvironment().getProperty(Constant.LOG_FORM_DATA_ENCODE);
         formDataEncode = isEmpty(formDataEncode) ? "0" : formDataEncode;
 
-        String[] split2 = headers.split(Constant.SPLIT);
-        List<String> collect2 = Arrays.stream(split2).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
-        LOGGER.debug("init HttpRawLogFilter urls = {} ,excludeUrls = {} ,exclude-suffix = {} ,log headers = {} ,formDataEncode = {}",
-                Arrays.toString(strings1), urlExcludePatterns, urlExcludeSuffix, collect2, formDataEncode);
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
-        bean.setFilter(new HttpRawLogFilter());
+        bean.setFilter(new HttpRawLogFilter(historyRecord));
         bean.setOrder(Integer.MIN_VALUE);
         bean.addUrlPatterns(strings1);
-        bean.setName("rawLogFilter");
+        bean.setName(Constant.FILTER_NAME);
         Map<String, String> map = new HashMap<>();
         map.put("logHeaders", headers);
         map.put("urlExcludePatterns", urlExcludePatterns);
@@ -83,6 +80,14 @@ public class AutoWebConfig {
         map.put("formDataEncodeFlag", formDataEncode);
         bean.setInitParameters(map);
         return bean;
+    }
+
+
+    @Bean
+    @ConditionalOnMissingBean(HistoryRecord.class)
+    @ConditionalOnExpression("${com.skycong.http-raw.log.history:1000} > 0")
+    public HistoryApi historyApi(@Autowired ApplicationContext applicationContext) {
+        return new HistoryApi(applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.history", Integer.class, 1000));
     }
 
     public static boolean isEmpty(String str) {

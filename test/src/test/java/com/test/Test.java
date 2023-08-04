@@ -1,7 +1,6 @@
 package com.test;
 
-import com.github.xiaoymin.knife4j.core.util.StrUtil;
-import io.netty.util.CharsetUtil;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.AntPathMatcher;
 
@@ -53,8 +52,8 @@ public class Test {
     @org.junit.Test
     public void test4()   {
 
-        CharsetEncoder encoder = CharsetUtil.encoder(StandardCharsets.ISO_8859_1);
-        System.out.println(encoder.canEncode('公'));
+        // CharsetEncoder encoder = CharsetUtil.encoder(StandardCharsets.ISO_8859_1);
+        // System.out.println(encoder.canEncode('公'));
         String s = "公元 2023-08-03(第31周) 下午 04:05:07.020 GMT +0800";
         System.out.println(s);
         byte[] bytes1 = s.getBytes(StandardCharsets.UTF_8);
@@ -71,7 +70,13 @@ public class Test {
         System.out.println(new String(bytes2, StandardCharsets.ISO_8859_1));
         System.out.println(new String(bytes2, StandardCharsets.UTF_8));
 
-        log.error("\u001B[34m" + "打印日志" + "\u001B[0m");
+        log.error("\u001B[31m" + "打印日志 红色" + "\u001B[0m sadfsafasfsa");
+        log.error("\u001B[32m" + "打印日志 绿色" + "\u001B[0m sadfsafasfsa");
+        log.error("\u001B[33m" + "打印日志 黄色" + "\u001B[0m sadfsafasfsa");
+        log.error("\u001B[34m" + "打印日志 蓝色" + "\u001B[0m sadfsafasfsa");
+        log.error("\u001B[35m" + "打印日志 紫色" + "\u001B[0m sadfsafasfsa");
+        log.error("\u001B[36m" + "打印日志 深绿" + "\u001B[0m sadfsafasfsa");
+        log.error("\u001B[47m" + "打印日志 深绿" + "\u001B[0m sadfsafasfsa");
     }
 
 

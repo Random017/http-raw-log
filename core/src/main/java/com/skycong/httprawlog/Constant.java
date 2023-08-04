@@ -37,6 +37,7 @@ public interface Constant {
      */
     String FORM_URLENCODED = "application/x-www-form-urlencoded";
 
+    String FILTER_NAME = "HttpRawLogFilter";
     String EMPTY = "";
     String STRING0 = "&";
     String SPLIT = ",";
@@ -55,4 +56,6 @@ public interface Constant {
     String LOG_HEADERS = "com.skycong.http-raw.log.headers";
     String STRING4 = "/*";
     String JS_CSS_HTML = "js,css,html";
+    String LOG_ID = "hLogId";
+
 }

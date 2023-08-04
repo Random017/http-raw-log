@@ -39,6 +39,12 @@
       "type": "java.lang.Integer",
       "defaultValue": "0",
       "description": "form-data 是否需要使用utf-8重新编码（0: 自动判断，1：始终需要编码，2：始终不编码）默认 0."
+    },
+    {
+      "name": "com.skycong.http-raw.log.history",
+      "type": "java.lang.Integer",
+      "defaultValue": "1000",
+      "description": "保留最近的请求历史记录，如果为0则不保留，默认保留最近的1000个请求日志."
     }
   ]
 }

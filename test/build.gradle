@@ -14,11 +14,10 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-web:${v}"
     implementation "org.springframework.boot:spring-boot-starter-aop:${v}"
     testCompile "org.springframework.boot:spring-boot-starter-test:${v}"
-    implementation "org.springframework.boot:spring-boot-starter-data-redis:${v}"
+
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.12'
     compile group: 'org.projectlombok', name: 'lombok', version: '1.18.22'
-    implementation 'org.springframework.boot:spring-boot-starter-test'
 
     compile project(':core')
 }
