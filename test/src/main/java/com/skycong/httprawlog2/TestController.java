@@ -44,6 +44,9 @@ public class TestController {
         return s;
     }
 
+    /**
+     * 异步请求暂不考虑
+     */
     @GetMapping("getCall/{p}")
     Callable<Object> getCall(@RequestParam(value = "abc", required = false) String abc,
                              @PathVariable(value = "p", required = false) String p) {
@@ -59,6 +62,9 @@ public class TestController {
         return new SimpleDateFormat("G yyyy-MM-dd(第w周) a hh:mm:ss.SSS 'GMT' Z", Locale.SIMPLIFIED_CHINESE).format(new Date());
     }
 
+    /**
+     * post json请求
+     */
     @PostMapping("post")
     Object post(@RequestBody Pojo pojo) {
         log.debug("pojo" + pojo);
