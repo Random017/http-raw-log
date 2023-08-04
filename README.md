@@ -14,12 +14,12 @@
   <dependency>
     <groupId>com.skycong</groupId>
     <artifactId>http-raw-log</artifactId>
-    <version>0.9.5</version>
+    <version>0.9.6</version>
   </dependency>
   
   #gradle
   dependencies {
-    compile 'com.skycong:http-raw-log:0.9.5'
+    compile 'com.skycong:http-raw-log:0.9.6'
   }
   ```
   
