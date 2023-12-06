@@ -45,6 +45,12 @@
       "type": "java.lang.Integer",
       "defaultValue": "1000",
       "description": "保留最近的请求历史记录，如果为0则不保留，默认保留最近的1000个请求日志."
+    },
+    {
+      "name": "com.skycong.http-raw.log.statistics",
+      "type": "java.lang.Boolean",
+      "defaultValue": "true",
+      "description": "是否开启请求耗时统计，默认开启."
     }
   ]
 }

@@ -3,6 +3,7 @@ package com.skycong.httprawlog.autoconfig;
 import com.skycong.httprawlog.Constant;
 import com.skycong.httprawlog.api.HistoryApi;
 import com.skycong.httprawlog.api.HistoryRecord;
+import com.skycong.httprawlog.api.StatisticsApi;
 import com.skycong.httprawlog.filter.HttpRawLogFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -67,6 +68,8 @@ public class AutoWebConfig {
         // form-data 是否需要重新编码
         String formDataEncode = applicationContext.getEnvironment().getProperty(Constant.LOG_FORM_DATA_ENCODE);
         formDataEncode = isEmpty(formDataEncode) ? "0" : formDataEncode;
+        // 统计
+        Boolean logStatistics = applicationContext.getEnvironment().getProperty(Constant.LOG_STATISTICS, Boolean.class, true);
 
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new HttpRawLogFilter(historyRecord));
@@ -78,16 +81,29 @@ public class AutoWebConfig {
         map.put("urlExcludePatterns", urlExcludePatterns);
         map.put("urlExcludeSuffix", urlExcludeSuffix);
         map.put("formDataEncodeFlag", formDataEncode);
+        map.put("logStatistics", logStatistics.toString());
         bean.setInitParameters(map);
         return bean;
     }
 
 
+    /**
+     * 历史请求记录 Controller
+     */
     @Bean
     @ConditionalOnMissingBean(HistoryRecord.class)
     @ConditionalOnExpression("${com.skycong.http-raw.log.history:1000} > 0")
     public HistoryApi historyApi(@Autowired ApplicationContext applicationContext) {
         return new HistoryApi(applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.history", Integer.class, 1000));
+    }
+
+    /**
+     * 统计Controller
+     */
+    @Bean
+    @ConditionalOnExpression("${com.skycong.http-raw.log.statistics:true}")
+    public StatisticsApi statisticsApi() {
+        return new StatisticsApi();
     }
 
     public static boolean isEmpty(String str) {

@@ -4,6 +4,7 @@ package com.skycong.httprawlog.filter;
 import com.skycong.httprawlog.Constant;
 import com.skycong.httprawlog.api.History;
 import com.skycong.httprawlog.api.HistoryRecord;
+import com.skycong.httprawlog.api.StatisticsApi;
 import com.skycong.httprawlog.wrapper.FormRequestWrapper;
 import com.skycong.httprawlog.wrapper.RequestWrapper;
 import com.skycong.httprawlog.wrapper.ResponseWrapper;
@@ -65,6 +66,10 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
      * form-data  是否需要重新编码(0: 自动判断，1：始终需要编码，2：始终不编码)
      */
     private int formDataEncodeFlag;
+    /**
+     * 是否统计接口耗时
+     */
+    private boolean logStatistics;
 
     private HistoryRecord historyRecord;
 
@@ -93,9 +98,11 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
             urlExcludePatterns.add("**/*.html");
             urlExcludePatterns.add("/httpRawLog/history");
         }
-        LOGGER.debug("init HttpRawLogFilter complete. urls = {} ,urlExcludePatterns = {}  ,log headers = {} ,formDataEncode = {}",
+        logStatistics = Boolean.parseBoolean(filterConfig.getInitParameter("logStatistics"));
+
+        LOGGER.debug("init HttpRawLogFilter complete. urls = {} ,urlExcludePatterns = {}  ,log headers = {} ,formDataEncode = {} ,logStatistics = {}",
                 getServletContext().getFilterRegistration(Constant.FILTER_NAME).getUrlPatternMappings(),
-                urlExcludePatterns, logHeaders, formDataEncodeFlag);
+                urlExcludePatterns, logHeaders, formDataEncodeFlag, logStatistics);
     }
 
     /**
@@ -132,6 +139,7 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
     }
 
     private void printLog(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+        long st = System.currentTimeMillis();
         // 定义变量
         String logId, method, requestURL, requestHeaders, queryStringLog, requestBody, responseBody, httpStatus, responseHeaders;
         // 写入logId
@@ -168,6 +176,11 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
         byte[] bytes = responseWrapper.getByteArrayOutputStream();
         response.getOutputStream().write(bytes);
         response.getOutputStream().flush();
+        long et = System.currentTimeMillis();
+        if (logStatistics) {
+            // 异步统计耗时
+            StatisticsApi.statistics(requestURL, (int) (et - st));
+        }
 
         // 排除resp 的流
         String responseWrapperContentType = response.getContentType();
