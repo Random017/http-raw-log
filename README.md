@@ -7,20 +7,14 @@
 
 ### 快速接入
 
-- #### 1 引入依赖
+- #### 1 引入依赖坐标
 
 - ```xml
-  #maven
   <dependency>
     <groupId>com.skycong</groupId>
     <artifactId>http-raw-log</artifactId>
-    <version>0.9.6</version>
+    <version>0.9.7</version>
   </dependency>
-  
-  #gradle
-  dependencies {
-    compile 'com.skycong:http-raw-log:0.9.6'
-  }
   ```
   
 - #### 2 配置log level 为 debug，在**application.properties** 中配置如下一行
@@ -64,6 +58,8 @@
   # 保留最近的请求历史记录，如果为0则不保留日志，也不输出到控制台，默认保留最近的1000个请求日志.
   # 访问地址：/httpRawLog/history，如有权限拦截请添加白名单
   com.skycong.http-raw.log.history=100
+  # 是否开启请求耗时统计，默认开启.访问地址：/httpRawLog/statistics?type=total&sort=desc，如有权限拦截请添加白名单
+  com.skycong.http-raw.log.statistics=true
   ```
 
 - #### 访问地址 **/httpRawLog/history** 可查看最近的1000个请求历史记录
