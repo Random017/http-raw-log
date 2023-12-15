@@ -7,7 +7,7 @@ import java.io.Serializable;
 /**
  * {@link LogRecord} 对应的POJO
  *
- * @author ruanmingcong (005163) on 2022/4/22 13:09
+ * @author ruanmingcong  on 2022/4/22 13:09
  */
 public class LogRecordPojo implements Serializable {
 

@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.TimeZone;
 
 /**
- * @author ruanmingcong (005163)
+ * @author ruanmingcong 
  * @since 23/07/05 11:16
  */
 @Configuration

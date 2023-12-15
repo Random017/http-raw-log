@@ -22,7 +22,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
- * @author ruanmingcong (005163)
+ * @author ruanmingcong 
  * @since 2022/5/24 11:09
  */
 @Configuration

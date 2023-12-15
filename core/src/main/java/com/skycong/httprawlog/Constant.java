@@ -1,7 +1,10 @@
 package com.skycong.httprawlog;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
- * @author ruanmingcong (005163)
+ * @author ruanmingcong
  * @since 2022/8/11 15:58
  */
 public interface Constant {
@@ -58,5 +61,39 @@ public interface Constant {
     String STRING4 = "/*";
     String JS_CSS_HTML = "js,css,html";
     String LOG_ID = "hLogId";
+
+    /**
+     * 默认 排除的Url
+     */
+    Set<String> DEFAULT_URL_EXCLUDE_PATTERNS = new HashSet<String>() {
+        {
+            //前端文件
+            add("/**/*.html");
+            add("/**/*.js");
+            add("/**/*.css");
+            add("/**/*.jsp");
+            // 图片
+            add("/**/*.jpg");
+            add("/**/*.png");
+            add("/**/*.gif");
+            add("/**/*.jpeg");
+            add("/**/*.ico");
+            add("/**/*.bmp");
+            // 字体
+            add("/**/*.ttf");
+            add("/**/*.woff");
+            // 音视频
+            add("/**/*.mp3");
+            add("/**/*.mp4");
+            // 文档
+            add("/**/*.word");
+            add("/**/*.ppt");
+            add("/**/*.xls");
+            add("/**/*.xlsx");
+            add("/**/*.pdf");
+            // 自有接口
+            add("/httpRawLog/*");
+        }
+    };
 
 }

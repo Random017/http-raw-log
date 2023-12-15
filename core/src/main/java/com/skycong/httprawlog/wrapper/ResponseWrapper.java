@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * 对response 包装，将响应的 outputStream 复制出来，并重新写回返回给客户端
  *
- * @author ruanmingcong (005163)
+ * @author ruanmingcong 
  * @since 2022/8/11 15:47
  */
 public class ResponseWrapper extends HttpServletResponseWrapper {

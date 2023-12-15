@@ -26,7 +26,7 @@ import java.util.Vector;
  * 重写一些方法，使得log 更友好
  * 重写一些方法，处理 query string，x-www-form-urlencoded 请求时字符编解码问题
  *
- * @author ruanmingcong (005163)
+ * @author ruanmingcong 
  * @since 2022/8/11 15:47
  */
 public class RequestWrapper extends HttpServletRequestWrapper {

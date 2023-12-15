@@ -10,7 +10,7 @@ import java.lang.annotation.*;
  *
  * <a href="https://docs.spring.io/spring-framework/docs/current/reference/html/core.html#expressions">SpEL</a>
  *
- * @author ruanmingcong (005163) on 2022/4/21 17:53
+ * @author ruanmingcong  on 2022/4/21 17:53
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)

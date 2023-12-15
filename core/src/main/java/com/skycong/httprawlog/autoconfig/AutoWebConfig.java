@@ -92,9 +92,9 @@ public class AutoWebConfig {
      */
     @Bean
     @ConditionalOnMissingBean(HistoryRecord.class)
-    @ConditionalOnExpression("${com.skycong.http-raw.log.history:1000} > 0")
+    @ConditionalOnExpression("${com.skycong.http-raw.log.history:1} > 0")
     public HistoryApi historyApi(@Autowired ApplicationContext applicationContext) {
-        return new HistoryApi(applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.history", Integer.class, 1000));
+        return new HistoryApi(applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.history", Integer.class, 1));
     }
 
     /**

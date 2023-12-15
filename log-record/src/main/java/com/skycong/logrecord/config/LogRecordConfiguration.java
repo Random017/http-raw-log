@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Lazy;
 /**
  * log record auto configuration
  *
- * @author ruanmingcong (005163) on 2022/4/22 16:31
+ * @author ruanmingcong  on 2022/4/22 16:31
  */
 @Configuration
 @Lazy

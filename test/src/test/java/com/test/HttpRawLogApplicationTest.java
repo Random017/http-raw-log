@@ -68,7 +68,10 @@ public class HttpRawLogApplicationTest {
     @Test
     public void postFormTests() throws Exception {
         mockMvc.perform(post("/test/upload/werq")
-                        .queryParam("query1", "123", "23443")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        // .characterEncoding("iso8859")
+                        .characterEncoding("utf8")
+                        .queryParam("query1", "123", "23443汉字")
                         .queryParam("query2", "艾地苯醌@￥@", URLEncoder.encode("querystring参数需要用URL 编码传参", "utf8"))
                         .param("formdata1", "表单参数1")
                         .param("formdata2", "表单参数2")
@@ -79,17 +82,18 @@ public class HttpRawLogApplicationTest {
     }
 
     @Test
-    public void postFileTests() throws Exception {
+    public void uploadFileTests() throws Exception {
         MockMultipartFile firstFile = new MockMultipartFile("file2", "测试txt.log",
                 MediaType.TEXT_PLAIN_VALUE, new ByteArrayInputStream("测试奔波\n将计就计".getBytes(StandardCharsets.UTF_8)));
 
         mockMvc.perform(multipart("/test/upload/werq")
-                .file(firstFile)
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .queryParam("query1", "123", "23443")
-                .queryParam("query2", "艾地苯醌@￥@", URLEncoder.encode("querystring参数需要用URL 编码传参", "utf8"))
-                .param("formdata1", "表单参数1")
-                .param("formdata2", URLEncoder.encode("表单参数2", "utf8")))
+                        .file(firstFile)
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .characterEncoding("utf8")
+                        .queryParam("query1", "123", "23443")
+                        .queryParam("query2", "艾地苯醌@￥@", URLEncoder.encode("querystring参数需要用URL 编码传参", "utf8"))
+                        .param("formdata1", "表单参数1")
+                        .param("formdata2", URLEncoder.encode("表单参数2", "utf8")))
                 .andExpect(content().string(StringContains.containsString("OK")))
                 .andDo(print());
     }

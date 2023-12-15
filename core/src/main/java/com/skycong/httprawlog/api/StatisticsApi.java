@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 /**
  * 统计每个请求的平均耗时，和累计次数
  *
- * @author ruanmingcong (005163)
+ * @author ruanmingcong
  * @since 23/11/30 17:57
  */
 @RestController
@@ -25,7 +25,7 @@ public class StatisticsApi {
      * 统计即可
      *
      * @param type 统计类型，total：按照总请求次数统计，avg：按照平均耗时统计
-     * @param sort desc 从大道小， asc 反之
+     * @param sort desc 从大到小， asc 反之
      */
     @GetMapping("httpRawLog/statistics")
     public Object query(@RequestParam(value = "type", required = false, defaultValue = "total") String type,

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * @author ruanmingcong (005163)
+ * @author ruanmingcong 
  * @since 2022/5/24 11:21
  */
 @ApiSupport(order = -1)

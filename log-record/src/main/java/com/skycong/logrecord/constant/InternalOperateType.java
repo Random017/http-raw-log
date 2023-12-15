@@ -3,7 +3,7 @@ package com.skycong.logrecord.constant;
 /**
  * 内置的操作类型常量
  *
- * @author ruanmingcong (005163) on 2022/4/21 18:08
+ * @author ruanmingcong  on 2022/4/21 18:08
  */
 public interface InternalOperateType {
 

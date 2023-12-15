@@ -22,7 +22,7 @@ import java.util.Vector;
  * 处理 multipart/form-data 格式请求，这种类型请求伴随这文件上传和参数传递
  * 获取form-data中除文件之外的参数
  *
- * @author ruanmingcong (005163)
+ * @author ruanmingcong 
  * @since 2022/8/11 15:47
  */
 public class FormRequestWrapper extends StandardMultipartHttpServletRequest {

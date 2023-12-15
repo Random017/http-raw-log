@@ -3,7 +3,22 @@ package com.skycong.httprawlog.api;
 import java.io.Serializable;
 
 /**
- * @author ruanmingcong (005163)
+ * <pre>
+ *      {
+ *         "time": "2023-12-15T09:58:21.474",
+ *         "hLogId": "d8016345-d980-4503-a716-ae5f3b9d71e7",
+ *         "method": "POST",
+ *         "url": "/test/post",
+ *         "requestHeaders": "{content-type=application/json}",
+ *         "queryString": "",
+ *         "requestBody": "{\r\n  \"s1\": \"哎哎哎\",\r\n  \"int2\": 30,\r\n  \"adbc\": true\r\n}",
+ *         "responseStatus": "200",
+ *         "responseHeaders": "{content-type=text/plain;charset=UTF-8}",
+ *         "responseBody": "OK:TestController.Pojo(s1=哎哎哎, int2=30, adbc=true)"
+ *     }
+ * </pre>
+ *
+ * @author ruanmingcong
  * @since 23/08/04 11:02
  */
 public class History implements Serializable {

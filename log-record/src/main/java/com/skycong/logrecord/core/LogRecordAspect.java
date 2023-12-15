@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 切面处理逻辑
  *
- * @author ruanmingcong (005163) on 2022/4/22 11:20
+ * @author ruanmingcong  on 2022/4/22 11:20
  */
 @Aspect
 public class LogRecordAspect {

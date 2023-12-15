@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
 /**
- * @author ruanmingcong (005163)
+ * @author ruanmingcong
  * @since 23/08/04 10:59
  */
 @RestController
@@ -21,10 +21,16 @@ public class HistoryApi implements HistoryRecord {
      */
     public static final ConcurrentLinkedDeque<History> HISTORIES = new ConcurrentLinkedDeque<>();
 
+
+    /**
+     * 历史接口
+     *
+     * @param hLogId 响应头里面hLogId
+     * @param page   分页参数，默认 1
+     */
     @GetMapping("httpRawLog/history")
-    List<History> history(@RequestParam(value = "hLogId", required = false) String hLogId,
-                          @RequestParam(value = "page", required = false, defaultValue = "1") int page,
-                          History history) {
+    public List<History> history(@RequestParam(value = "hLogId", required = false) String hLogId,
+                                 @RequestParam(value = "page", required = false, defaultValue = "1") int page) {
         // 优先logId 检索
         if (hLogId != null && !hLogId.isEmpty()) {
             return HISTORIES.stream().filter(f -> f.gethLogId().equals(hLogId)).collect(Collectors.toList());
@@ -46,7 +52,7 @@ public class HistoryApi implements HistoryRecord {
     /**
      * 最大历史记录
      */
-    private int maxHistory = 1000;
+    private int maxHistory;
 
     public HistoryApi() {
     }
@@ -61,13 +67,18 @@ public class HistoryApi implements HistoryRecord {
      */
     @Override
     public void record(History history) {
+        // 先打印到
         consoleLog(history);
-        // 添加到头, 时间最新的在前面
-        HISTORIES.addFirst(history);
-        if (HISTORIES.size() > maxHistory) {
-            HISTORIES.removeLast();
+
+        // 记录请求日志到内存中
+        if (maxHistory > 0) {
+            // 添加到头, 时间最新的在前面
+            HISTORIES.addFirst(history);
             if (HISTORIES.size() > maxHistory) {
                 HISTORIES.removeLast();
+                if (HISTORIES.size() > maxHistory) {
+                    HISTORIES.removeLast();
+                }
             }
         }
     }
@@ -93,7 +104,7 @@ public class HistoryApi implements HistoryRecord {
         HttpRawLogFilter.LOGGER.debug(sb.toString());
     }
 
-
+    // 彩色日志
     static String logf1(String log) {
         // 青色
         return "\u001B[36m" + log + "\u001B[0m";

@@ -32,16 +32,16 @@ import java.util.stream.Collectors;
  * 控制台打印日志示例：
  *
  * <pre>
- * -------------- http raw data sessionId:	8C6A1D4433A10BFED5D64516939904E5
- * [url]:POST	/test/upload/p
- * [headers]:{host=localhost:8943, referer=null, content-type=null, cookie=JSESSIONID=1E60F913C20FFB23354FC404C86759F3, accept-language=null, user-agent=PostmanRuntime/7.28.4}
- * [request data]:	#query string# a=[b], c=[d], e[0]=[0], e[1]=[1],
- * #request body#
- * {
- *      test
+ * --------------> http raw data hLogId:d8016345-d980-4503-a716-ae5f3b9d71e7
+ * [url]:POST	/test/post
+ * [request headers]:{content-type=application/json}
+ * [request body]:{
+ *   "s1": "哎哎哎",
+ *   "int2": 30,
+ *   "adbc": true
  * }
- * [response data]:httpStatus=200	 responseHeaders={content-type=text/plain;charset=UTF-8}
- * OK
+ * [response headers]:status=200, {content-type=text/plain;charset=UTF-8}
+ * [response body]:OK:TestController.Pojo(s1=哎哎哎, int2=30, adbc=true)
  * </pre>
  *
  * @author ruanmingcong
@@ -71,7 +71,10 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
      */
     private boolean logStatistics;
 
-    private HistoryRecord historyRecord;
+    /**
+     * 默认的 HistoryRecord 实现
+     */
+    private final HistoryRecord historyRecord;
 
     public HttpRawLogFilter(HistoryRecord historyRecord) {
         this.historyRecord = historyRecord;
@@ -92,12 +95,8 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
         String s1 = filterConfig.getInitParameter("urlExcludePatterns");
         String[] split3 = s1.split(Constant.SPLIT);
         urlExcludePatterns = Arrays.stream(split3).filter(f -> !f.trim().isEmpty()).collect(Collectors.toSet());
-        if (urlExcludePatterns.isEmpty()) {
-            urlExcludePatterns.add("**/*.js");
-            urlExcludePatterns.add("**/*.css");
-            urlExcludePatterns.add("**/*.html");
-            urlExcludePatterns.add("/httpRawLog/history");
-        }
+        urlExcludePatterns.addAll(Constant.DEFAULT_URL_EXCLUDE_PATTERNS);
+
         logStatistics = Boolean.parseBoolean(filterConfig.getInitParameter("logStatistics"));
 
         LOGGER.debug("init HttpRawLogFilter complete. urls = {} ,urlExcludePatterns = {}  ,log headers = {} ,formDataEncode = {} ,logStatistics = {}",
@@ -105,26 +104,11 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
                 urlExcludePatterns, logHeaders, formDataEncodeFlag, logStatistics);
     }
 
-    /**
-     * 给定一个请求 URI，判断其是否在排除的URL列表中
-     *
-     * @param uri 给定的URI
-     * @return true 在排除URL列表中，false 不在
-     */
-    private boolean excludeMatch(String uri) {
-        final AntPathMatcher urlExcludePattern = new AntPathMatcher();
-        for (String excludePattern : urlExcludePatterns) {
-            if (urlExcludePattern.match(excludePattern, uri)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
-        // 非debug 默认不开启
-        if (!LOGGER.isDebugEnabled()) {
+        // 非debug 默认不开启 且必须有 historyRecord 实例
+        if (!LOGGER.isDebugEnabled() || historyRecord == null) {
             chain.doFilter(request, response);
             return;
         }
@@ -202,11 +186,24 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
         responseHeaders = respHeadMap.toString();
 
         // 记录日志
-        if (historyRecord != null) {
-            historyRecord.record(new History(LocalDateTime.now().toString(), logId, method, requestURL, requestHeaders, queryStringLog,
-                    requestBody, httpStatus, responseHeaders, responseBody));
-        }
+        historyRecord.record(new History(LocalDateTime.now().toString(), logId, method, requestURL, requestHeaders, queryStringLog,
+                requestBody, httpStatus, responseHeaders, responseBody));
     }
 
 
+    /**
+     * 给定一个请求 URI，判断其是否在排除的URL列表中
+     *
+     * @param uri 给定的URI
+     * @return true 在排除URL列表中，false 不在
+     */
+    private boolean excludeMatch(String uri) {
+        final AntPathMatcher urlExcludePattern = new AntPathMatcher();
+        for (String excludePattern : urlExcludePatterns) {
+            if (urlExcludePattern.match(excludePattern, uri)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
