@@ -1,7 +1,12 @@
 package com.skycong.httprawlog2;
 
+import com.skycong.httprawlog.filter.HttpRawLogFilter;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeansException;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,13 +16,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.Filter;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 
@@ -28,8 +36,15 @@ import java.util.concurrent.Callable;
 @Slf4j
 @RestController
 @RequestMapping("test")
-public class TestController {
+public class TestController implements ApplicationContextAware {
 
+
+    ApplicationContext applicationContext;
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+       this. applicationContext = applicationContext;
+    }
 
     /**
      * 测试普通get
@@ -41,6 +56,18 @@ public class TestController {
         String s = getTime() + "\n" + abc + "\n" + p;
         log.info("s = {}", s);
         response.setCharacterEncoding("utf8");
+        Collection<FilterRegistrationBean> values = applicationContext.getBeansOfType(FilterRegistrationBean.class)
+                .values();
+        for (FilterRegistrationBean value : values) {
+            Filter filter = value.getFilter();
+           if (filter instanceof HttpRawLogFilter){
+               // HttpRawLogFilter httpRawLogFilter = (HttpRawLogFilter) filter;
+               // HashSet<String> strings = new HashSet<>();
+               // strings.add("");
+               // httpRawLogFilter.setUrlExcludePatterns(strings);
+               // httpRawLogFilter.setServletContext();
+           }
+        }
         return s;
     }
 
