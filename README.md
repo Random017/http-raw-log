@@ -13,7 +13,7 @@
   <dependency>
     <groupId>com.skycong</groupId>
     <artifactId>http-raw-log</artifactId>
-    <version>0.9.8</version>
+    <version>0.9.9</version>
   </dependency>
   ```
   
