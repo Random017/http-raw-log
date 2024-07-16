@@ -25,12 +25,11 @@ import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 
 /**
- * @author ruanmingcong 
+ * @author ruanmingcong
  * @since 23/08/03 16:53
  */
 @Slf4j
@@ -43,7 +42,7 @@ public class TestController implements ApplicationContextAware {
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-       this. applicationContext = applicationContext;
+        this.applicationContext = applicationContext;
     }
 
     /**
@@ -60,13 +59,13 @@ public class TestController implements ApplicationContextAware {
                 .values();
         for (FilterRegistrationBean value : values) {
             Filter filter = value.getFilter();
-           if (filter instanceof HttpRawLogFilter){
-               // HttpRawLogFilter httpRawLogFilter = (HttpRawLogFilter) filter;
-               // HashSet<String> strings = new HashSet<>();
-               // strings.add("");
-               // httpRawLogFilter.setUrlExcludePatterns(strings);
-               // httpRawLogFilter.setServletContext();
-           }
+            if (filter instanceof HttpRawLogFilter) {
+                // HttpRawLogFilter httpRawLogFilter = (HttpRawLogFilter) filter;
+                // HashSet<String> strings = new HashSet<>();
+                // strings.add("");
+                // httpRawLogFilter.setUrlExcludePatterns(strings);
+                // httpRawLogFilter.setServletContext();
+            }
         }
         return s;
     }
@@ -141,15 +140,13 @@ public class TestController implements ApplicationContextAware {
                   @PathVariable(value = "p", required = false) String p,
                   HttpServletResponse response) throws IOException {
         log.debug("file = {},abc = {},p = {}", file, abc, p);
-
         String downloadContent = System.currentTimeMillis() + " 这是下载内容abc123!@#$";
-
         String downloadFilename = URLEncoder.encode("abc123中文", "utf8");
         // 指明response的返回对象是文件流
-        response.setContentType("application/octet-stream");
+        response.setContentType(file.getContentType());
         // 设置在下载框默认显示的文件名
-        response.setHeader("Content-Disposition", "attachment;filename=" + downloadFilename);
-        response.getOutputStream().write(downloadContent.getBytes());
+        response.setHeader("Content-Disposition", "attachment;filename=" + file.getOriginalFilename());
+        response.getOutputStream().write(file.getBytes());
         response.getOutputStream().flush();
     }
 }

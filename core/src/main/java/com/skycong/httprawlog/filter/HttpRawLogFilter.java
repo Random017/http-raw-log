@@ -168,12 +168,13 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
 
         // 排除resp 的流
         String responseWrapperContentType = response.getContentType();
-        String header1 = response.getHeader(Constant.CONTENT_DISPOSITION);
-        if (Constant.APPLICATION_OCTET_STREAM.equalsIgnoreCase(responseWrapperContentType) || header1 != null) {
-            String s = "resp type : application/octet stream, so not log , response body size = " + bytes.length;
-            responseBody = new String(s.getBytes());
-        } else {
+        if (responseWrapperContentType != null &&
+                // 允许打印响应body的content-type
+                (responseWrapperContentType.toLowerCase().contains("text/") || responseWrapperContentType.toLowerCase().contains("application/json"))) {
             responseBody = new String(bytes, StandardCharsets.UTF_8);
+        } else {
+            String s = "response content-type:" + responseWrapperContentType + ", so not log, response body size is " + bytes.length;
+            responseBody = new String(s.getBytes());
         }
         httpStatus = String.valueOf(response.getStatus());
         Map<String, String> respHeadMap = new HashMap<>(logHeaders.size());
