@@ -1,10 +1,20 @@
 {
   "properties": [
     {
-      "name": "com.skycong.http-raw.log",
+      "name": "com.skycong.http-raw.log.open",
       "type": "java.lang.Boolean",
       "defaultValue": "true",
       "description": "是否开启 http-raw-log，默认 true."
+    },
+    {
+      "name": "com.skycong.http-raw.log",
+      "type": "java.lang.Boolean",
+      "defaultValue": "true",
+      "description": "是否开启 http-raw-log，默认 true.【废弃，请使用com.skycong.http-raw.log.open替代】.",
+      "deprecation": {
+        "level": "error",
+        "replacement": "com.skycong.http-raw.log.open"
+      }
     },
     {
       "name": "com.skycong.http-raw.log.urls",
@@ -51,6 +61,12 @@
       "type": "java.lang.Boolean",
       "defaultValue": "true",
       "description": "是否开启请求耗时统计，默认开启."
+    },
+    {
+      "name": "com.skycong.http-raw.log.filterOrder",
+      "type": "java.lang.Integer",
+      "defaultValue": "-100",
+      "description": "过滤器的排序号，相比spring内置的过滤顺序靠后."
     }
   ]
 }

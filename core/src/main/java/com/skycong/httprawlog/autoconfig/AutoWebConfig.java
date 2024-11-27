@@ -37,10 +37,9 @@ public class AutoWebConfig {
      * @return filter bean
      */
     @Bean
-    @ConditionalOnExpression("${com.skycong.http-raw.log:true}")
+    @ConditionalOnExpression("${com.skycong.http-raw.log.open:true}")
     public FilterRegistrationBean<HttpRawLogFilter> filterRegistrationBean(@Autowired ApplicationContext applicationContext,
                                                                            @Autowired(required = false) HistoryRecord historyRecord) {
-
         /*
          * HttpRawLogFilter 拦截的urls 正则
          * 需要拦截处理的URL
@@ -70,10 +69,12 @@ public class AutoWebConfig {
         formDataEncode = isEmpty(formDataEncode) ? "0" : formDataEncode;
         // 统计
         Boolean logStatistics = applicationContext.getEnvironment().getProperty(Constant.LOG_STATISTICS, Boolean.class, true);
+        // 序号
+        Integer filterOrder = applicationContext.getEnvironment().getProperty(Constant.FILTER_ORDER, Integer.class, -100);
 
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new HttpRawLogFilter(historyRecord));
-        bean.setOrder(Integer.MIN_VALUE);
+        bean.setOrder(filterOrder);
         bean.addUrlPatterns(strings1);
         bean.setName(Constant.FILTER_NAME);
         Map<String, String> map = new HashMap<>();
@@ -88,17 +89,17 @@ public class AutoWebConfig {
 
 
     /**
-     * 历史请求记录 Controller
+     * 历史请求记录 Controller，默认开启
      */
     @Bean
     @ConditionalOnMissingBean(HistoryRecord.class)
-    @ConditionalOnExpression("${com.skycong.http-raw.log.history:1} > 0")
+    @ConditionalOnExpression("${com.skycong.http-raw.log.history:0} >= 0")
     public HistoryApi historyApi(@Autowired ApplicationContext applicationContext) {
-        return new HistoryApi(applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.history", Integer.class, 1));
+        return new HistoryApi(applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.history", Integer.class, 0));
     }
 
     /**
-     * 统计Controller
+     * 统计Controller，默认开启
      */
     @Bean
     @ConditionalOnExpression("${com.skycong.http-raw.log.statistics:true}")
@@ -107,7 +108,7 @@ public class AutoWebConfig {
     }
 
     public static boolean isEmpty(String str) {
-        return (str == null || "".equals(str));
+        return (str == null || str.isEmpty());
     }
 
 }

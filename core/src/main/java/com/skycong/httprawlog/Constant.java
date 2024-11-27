@@ -58,6 +58,7 @@ public interface Constant {
     String LOG_FORM_DATA_ENCODE = "com.skycong.http-raw.log.form-data.encode";
     String LOG_HEADERS = "com.skycong.http-raw.log.headers";
     String LOG_STATISTICS = "com.skycong.http-raw.log.statistics";
+    String FILTER_ORDER= "com.skycong.http-raw.log.filterOrder";
     String STRING4 = "/*";
     String JS_CSS_HTML = "js,css,html";
     String LOG_ID = "hLogId";
