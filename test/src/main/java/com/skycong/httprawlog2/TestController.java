@@ -50,7 +50,7 @@ public class TestController implements ApplicationContextAware {
      */
     @GetMapping(value = "get/{p}")
     String get(@RequestParam(value = "abc", required = false) String abc,
-               @PathVariable(value = "p", required = false) String p, HttpServletResponse response) {
+               @PathVariable(value = "p", required = false) String p, HttpServletResponse response,Pojo pojo) {
         log.debug("abc = {},p = {}", abc, p);
         String s = getTime() + "\n" + abc + "\n" + p;
         log.info("s = {}", s);

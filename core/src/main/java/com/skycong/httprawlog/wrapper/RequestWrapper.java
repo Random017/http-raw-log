@@ -26,7 +26,7 @@ import java.util.Vector;
  * 重写一些方法，使得log 更友好
  * 重写一些方法，处理 query string，x-www-form-urlencoded 请求时字符编解码问题
  *
- * @author ruanmingcong 
+ * @author ruanmingcong
  * @since 2022/8/11 15:47
  */
 public class RequestWrapper extends HttpServletRequestWrapper {
@@ -238,12 +238,9 @@ public class RequestWrapper extends HttpServletRequestWrapper {
             e.printStackTrace();
         }
         String[] kvs = queryString.split(Constant.STRING0);
-        if (kvs.length == 0) {
-            return map;
-        }
         for (String kv : kvs) {
             if (kv != null && !kv.isEmpty()) {
-                String[] kv0 = kv.split(Constant.EQ);
+                String[] kv0 = kv.split(Constant.EQ, 2);
                 if (kv0.length == 2) {
                     String k = kv0[0];
                     String v = kv0[1];
