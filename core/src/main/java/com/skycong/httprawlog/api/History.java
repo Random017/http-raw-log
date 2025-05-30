@@ -1,6 +1,10 @@
 package com.skycong.httprawlog.api;
 
 import java.io.Serializable;
+import java.lang.ref.WeakReference;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * <pre>
@@ -35,6 +39,10 @@ public class History implements Serializable {
     private String responseStatus;
     private String responseHeaders;
     private String responseBody;
+    // txId
+    private String txId;
+    // 链路日志
+    private WeakReference<List<String>> traceLogs;
 
     public History() {
     }
@@ -130,6 +138,23 @@ public class History implements Serializable {
 
     public void setResponseBody(String responseBody) {
         this.responseBody = responseBody;
+    }
+
+    public String getTxId() {
+        return txId;
+    }
+
+    public void setTxId(String txId) {
+        this.txId = txId;
+    }
+
+    public List<String> getTraceLogs() {
+        return traceLogs.get();
+    }
+
+    public void appendLog(String log) {
+        if (this.traceLogs == null) this.traceLogs = new WeakReference<>(new LinkedList<>());
+        Objects.requireNonNull(this.traceLogs.get()).add(log);
     }
 
     @Override

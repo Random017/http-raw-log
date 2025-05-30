@@ -67,6 +67,18 @@
       "type": "java.lang.Integer",
       "defaultValue": "-100",
       "description": "过滤器的排序号，相比spring内置的过滤顺序靠后."
+    },
+    {
+      "name": "com.skycong.http-raw.log.appLogFilePath",
+      "type": "java.lang.String",
+      "defaultValue": "",
+      "description": "监听的应用日志路径 eg /app/spring.log ."
+    },
+    {
+      "name": "com.skycong.http-raw.log.tailInterval",
+      "type": "java.lang.Integer",
+      "defaultValue": "5",
+      "description": "监听器读取日志文件间隔，单位秒."
     }
   ]
 }

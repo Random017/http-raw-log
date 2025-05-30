@@ -4,6 +4,7 @@ import com.skycong.httprawlog.Constant;
 import com.skycong.httprawlog.api.HistoryApi;
 import com.skycong.httprawlog.api.HistoryRecord;
 import com.skycong.httprawlog.api.StatisticsApi;
+import com.skycong.httprawlog.appender.FileAppender;
 import com.skycong.httprawlog.filter.HttpRawLogFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -71,6 +72,12 @@ public class AutoWebConfig {
         Boolean logStatistics = applicationContext.getEnvironment().getProperty(Constant.LOG_STATISTICS, Boolean.class, true);
         // 序号
         Integer filterOrder = applicationContext.getEnvironment().getProperty(Constant.FILTER_ORDER, Integer.class, -100);
+        // 应用日志文件路径
+        String appLogFilePath = applicationContext.getEnvironment().getProperty(Constant.APP_LOG_FILE_PATH, String.class);
+        // 读取日志文件间隔，单位：秒
+        Integer tailInterval = applicationContext.getEnvironment().getProperty(Constant.TAIL_INTERVAL, Integer.class, 5);
+        // 保留的历史日志数量
+        Integer historyLogs = applicationContext.getEnvironment().getProperty(Constant.HISTORY_NUM, Integer.class, 0);
 
         FilterRegistrationBean<HttpRawLogFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new HttpRawLogFilter(historyRecord));
@@ -84,6 +91,10 @@ public class AutoWebConfig {
         map.put("formDataEncodeFlag", formDataEncode);
         map.put("logStatistics", logStatistics.toString());
         bean.setInitParameters(map);
+        // 启动日志监听
+        if (!isEmpty(appLogFilePath) && historyLogs > 0) {
+            FileAppender.start(appLogFilePath, tailInterval);
+        }
         return bean;
     }
 
@@ -95,7 +106,7 @@ public class AutoWebConfig {
     @ConditionalOnMissingBean(HistoryRecord.class)
     @ConditionalOnExpression("${com.skycong.http-raw.log.history:0} >= 0")
     public HistoryApi historyApi(@Autowired ApplicationContext applicationContext) {
-        return new HistoryApi(applicationContext.getEnvironment().getProperty("com.skycong.http-raw.log.history", Integer.class, 0));
+        return new HistoryApi(applicationContext.getEnvironment().getProperty(Constant.HISTORY_NUM, Integer.class, 0));
     }
 
     /**
@@ -110,5 +121,4 @@ public class AutoWebConfig {
     public static boolean isEmpty(String str) {
         return (str == null || str.isEmpty());
     }
-
 }
