@@ -15,6 +15,14 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-aop:${v}"
     testImplementation "org.springframework.boot:spring-boot-starter-test:${v}"
 
+    // tlog
+    implementation('com.yomahub:tlog-web-spring-boot-starter:1.5.1') {
+//        exclude group: 'cn.hutool', module: 'hutool-core'
+        exclude group: 'com.squareup.okhttp3', module: 'okhttp'
+        exclude group: 'com.alibaba', module: 'fastjson'
+        exclude group: 'pull-parser', module: 'pull-parser'
+    }
+
     annotationProcessor 'org.projectlombok:lombok:1.18.24'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
     api group: 'org.projectlombok', name: 'lombok', version: '1.18.24'

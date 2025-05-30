@@ -7,6 +7,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.servlet.Filter;
 import javax.servlet.http.HttpServletResponse;
@@ -27,6 +29,8 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @author ruanmingcong
@@ -45,12 +49,40 @@ public class TestController implements ApplicationContextAware {
         this.applicationContext = applicationContext;
     }
 
+
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream() {
+        SseEmitter emitter = new SseEmitter();
+
+        emitter.onCompletion(() -> log.info("SSE连接完成"));
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            try {
+                for (int i = 0; i < 10; i++) {
+                    emitter.send(SseEmitter.event()
+                            .data("Message " + i)
+                            .id(String.valueOf(i))
+                            .name(""));
+                    Thread.sleep(1000); // 模拟延迟
+                    log.info("发送消息: {}", i);
+                }
+                emitter.complete();
+                log.info("SSE发送完成");
+            } catch (Exception e) {
+                emitter.completeWithError(e);
+            }
+        });
+
+        return emitter;
+    }
+
     /**
      * 测试普通get
      */
     @GetMapping(value = "get/{p}")
     String get(@RequestParam(value = "abc", required = false) String abc,
-               @PathVariable(value = "p", required = false) String p, HttpServletResponse response,Pojo pojo) {
+               @PathVariable(value = "p", required = false) String p, HttpServletResponse response, Pojo pojo) {
         log.debug("abc = {},p = {}", abc, p);
         String s = getTime() + "\n" + abc + "\n" + p;
         log.info("s = {}", s);

@@ -1,10 +1,14 @@
 package com.skycong.httprawlog2;
 
+import com.skycong.httprawlog.api.History;
+import com.skycong.httprawlog.appender.FileAppender;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
+
+import java.util.function.BiFunction;
 
 @SpringBootApplication
 public class HttpRawLogApplication {
