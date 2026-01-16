@@ -60,7 +60,7 @@
       "name": "com.skycong.http-raw.log.history.maxChars",
       "type": "java.lang.Integer",
       "defaultValue": "203",
-      "description": "response body 最大字符长度，默认 203."
+      "description": "response body 最大字符长度，默认 203，超过该长度会被截断，小于0表示不截断."
     },
     {
       "name": "com.skycong.http-raw.log.statistics",

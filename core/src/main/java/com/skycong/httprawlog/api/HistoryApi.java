@@ -104,7 +104,6 @@ public class HistoryApi implements HistoryRecord {
         }
         sb.append(logf3("[response headers]")).append(":status=").append(history.getResponseStatus()).append(", ").append(history.getResponseHeaders()).append('\n');
         if (!history.getResponseBody().isEmpty()) {
-            sb.append(logf3("[response body]")).append(":").append(history.getResponseBody());
             sb.append(logf3("[response body]")).append(":").append(preComputedTruncate(history.getResponseBody(), maxChars));
         }
         HttpRawLogFilter.LOGGER.debug(sb.toString());
