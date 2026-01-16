@@ -106,7 +106,9 @@ public class AutoWebConfig {
     @ConditionalOnMissingBean(HistoryRecord.class)
     @ConditionalOnExpression("${com.skycong.http-raw.log.history:0} >= 0")
     public HistoryApi historyApi(@Autowired ApplicationContext applicationContext) {
-        return new HistoryApi(applicationContext.getEnvironment().getProperty(Constant.HISTORY_NUM, Integer.class, 0));
+        int maxHistory = applicationContext.getEnvironment().getProperty(Constant.HISTORY_NUM, Integer.class, 0);
+        int maxChars = applicationContext.getEnvironment().getProperty(Constant.HISTORY_MAX_CHARS, Integer.class, 203);
+        return new HistoryApi(maxHistory, maxChars);
     }
 
     /**

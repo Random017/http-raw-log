@@ -57,6 +57,12 @@
       "description": "保留最近的请求历史记录，如果为0则不保留，默认保留最近的1个请求日志."
     },
     {
+      "name": "com.skycong.http-raw.log.history.maxChars",
+      "type": "java.lang.Integer",
+      "defaultValue": "203",
+      "description": "response body 最大字符长度，默认 203."
+    },
+    {
       "name": "com.skycong.http-raw.log.statistics",
       "type": "java.lang.Boolean",
       "defaultValue": "true",

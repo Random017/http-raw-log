@@ -53,13 +53,18 @@ public class HistoryApi implements HistoryRecord {
      * 最大历史记录
      */
     private int maxHistory;
+    /**
+     * response body 最大字符长度
+     */
+    private int maxChars;
 
     public HistoryApi() {
     }
 
-    public HistoryApi(int maxHistory) {
+    public HistoryApi(int maxHistory, int maxChars) {
         this.maxHistory = maxHistory;
-        HttpRawLogFilter.LOGGER.debug("init default History API complete maxHistory = {}.", maxHistory);
+        this.maxChars = maxChars;
+        HttpRawLogFilter.LOGGER.debug("init default History API complete maxHistory = {}, maxChars = {}.", maxHistory, maxChars);
     }
 
     /**
@@ -85,7 +90,7 @@ public class HistoryApi implements HistoryRecord {
 
 
     //log 打印到控制台上
-    public static void consoleLog(History history) {
+    public void consoleLog(History history) {
         StringBuilder sb = new StringBuilder();
         sb.append('\n')
                 .append("--------------> http raw data ").append(logf1("hLogId:")).append(history.gethLogId()).append('\n')
@@ -100,8 +105,24 @@ public class HistoryApi implements HistoryRecord {
         sb.append(logf3("[response headers]")).append(":status=").append(history.getResponseStatus()).append(", ").append(history.getResponseHeaders()).append('\n');
         if (!history.getResponseBody().isEmpty()) {
             sb.append(logf3("[response body]")).append(":").append(history.getResponseBody());
+            sb.append(logf3("[response body]")).append(":").append(preComputedTruncate(history.getResponseBody(), maxChars));
         }
         HttpRawLogFilter.LOGGER.debug(sb.toString());
+    }
+
+    /**
+     * 预计算长度的截断（避免重复计算）
+     */
+    public static String preComputedTruncate(String text, int maxChars) {
+        if (text == null) return null;
+
+        final int textLength = text.length();
+        final int ellipsisLength = 3; // "...".length()
+
+        if (textLength <= maxChars || maxChars <= ellipsisLength) {
+            return text;
+        }
+        return text.substring(0, maxChars - ellipsisLength) + "...";
     }
 
     // 彩色日志

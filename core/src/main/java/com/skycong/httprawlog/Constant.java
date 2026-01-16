@@ -62,6 +62,7 @@ public interface Constant {
     String APP_LOG_FILE_PATH = "com.skycong.http-raw.log.appLogFilePath";
     String TAIL_INTERVAL = "com.skycong.http-raw.log.tailInterval";
     String HISTORY_NUM = "com.skycong.http-raw.log.history";
+    String HISTORY_MAX_CHARS = "com.skycong.http-raw.log.history.maxChars";
     String STRING4 = "/*";
     String JS_CSS_HTML = "js,css,html";
     String LOG_ID = "hLogId";
