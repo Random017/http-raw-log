@@ -32,15 +32,15 @@ public class StatisticsApi {
                         @RequestParam(value = "sort", required = false, defaultValue = "desc") String sort) {
         if (type.equals("total")) {
             if (sort.equals("desc")) {
-                return map.values().parallelStream().sorted(totalComparatorDesc).collect(Collectors.toList());
+                return map.values().stream().sorted(totalComparatorDesc).collect(Collectors.toList());
             } else {
-                return map.values().parallelStream().sorted(totalComparatorAsc).collect(Collectors.toList());
+                return map.values().stream().sorted(totalComparatorAsc).collect(Collectors.toList());
             }
         } else {
             if (sort.equals("desc")) {
-                return map.values().parallelStream().sorted(avgComparatorDesc).collect(Collectors.toList());
+                return map.values().stream().sorted(avgComparatorDesc).collect(Collectors.toList());
             } else {
-                return map.values().parallelStream().sorted(avgComparatorAsc).collect(Collectors.toList());
+                return map.values().stream().sorted(avgComparatorAsc).collect(Collectors.toList());
             }
         }
     }
@@ -68,20 +68,17 @@ public class StatisticsApi {
      * @param time       耗时，（单位：毫秒）
      */
     public static void statistics(String requestURI, int time) {
-        EXECUTORS.execute(() -> {
-            StatisticsData data = map.get(requestURI);
+        EXECUTORS.execute(() -> map.compute(requestURI, (key, data) -> {
             if (data == null) {
                 data = new StatisticsData(requestURI);
-                data.totalRequestNum++;
+                data.totalRequestNum = 1;
                 data.averageTime = time;
                 data.longestTime = time;
                 data.shortestTime = time;
-                map.put(requestURI, data);
             } else {
-                // 整体在单线程里执行的，不存在并发问题
                 data.totalRequestNum++;
-                int t = data.averageTime; // 平均时间
-                data.averageTime = t + (int) Math.round((time - t) / (data.totalRequestNum * 1.0D)); // 重新计算，四舍五入
+                int t = data.averageTime;
+                data.averageTime = t + (int) Math.round((time - t) / (data.totalRequestNum * 1.0D));
                 if (time > data.longestTime) {
                     data.longestTime = time;
                 }
@@ -89,7 +86,8 @@ public class StatisticsApi {
                     data.shortestTime = time;
                 }
             }
-        });
+            return data;
+        }));
     }
 
     /**
@@ -100,23 +98,23 @@ public class StatisticsApi {
         /**
          * uri
          */
-        public String requestURI;
+        public volatile String requestURI;
         /**
          * 累计请求次数
          */
-        public int totalRequestNum = 0;
+        public volatile int totalRequestNum = 0;
         /**
          * 接口平均耗时 单位：毫秒
          */
-        public int averageTime = 0;
+        public volatile int averageTime = 0;
         /**
          * 最长耗时 单位：毫秒
          */
-        public int longestTime = 0;
+        public volatile int longestTime = 0;
         /**
          * 最短耗时 单位：毫秒
          */
-        public int shortestTime = 0;
+        public volatile int shortestTime = 0;
 
         public StatisticsData() {
         }

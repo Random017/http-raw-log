@@ -36,16 +36,10 @@ public class HistoryApi implements HistoryRecord {
             return HISTORIES.stream().filter(f -> f.gethLogId().equals(hLogId)).collect(Collectors.toList());
         }
         // 分页
-        page = Math.max(page, 1);
-        page = Math.min(page, 20);
-        int skip = (page - 1) * 50, limit = 50;
-        if (skip >= HISTORIES.size()) {
-            skip = HISTORIES.size();
-            limit = 0;
-        }
-        if ((skip + limit) >= HISTORIES.size()) {
-            limit = HISTORIES.size() - skip;
-        }
+        page = Math.max(1, Math.min(page, 20));
+        int size = HISTORIES.size();
+        int skip = Math.min((page - 1) * 50, size);
+        int limit = Math.min(50, size - skip);
         return HISTORIES.stream().skip(skip).limit(limit).collect(Collectors.toList());
     }
 
@@ -79,11 +73,8 @@ public class HistoryApi implements HistoryRecord {
         if (maxHistory > 0) {
             // 添加到头, 时间最新的在前面
             HISTORIES.addFirst(history);
-            if (HISTORIES.size() > maxHistory) {
+            while (HISTORIES.size() > maxHistory) {
                 HISTORIES.removeLast();
-                if (HISTORIES.size() > maxHistory) {
-                    HISTORIES.removeLast();
-                }
             }
         }
     }

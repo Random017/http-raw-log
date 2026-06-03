@@ -1,5 +1,7 @@
 package com.skycong.httprawlog;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -42,10 +44,10 @@ public interface Constant {
 
     String FILTER_NAME = "HttpRawLogFilter";
     String EMPTY = "";
-    String STRING0 = "&";
+    String AMPERSAND = "&";
     String SPLIT = ",";
     String EQ = "=";
-    String STRING3 = ";";
+    String SEMICOLON = ";";
     String LINE = "\n";
     String CONTENT_DISPOSITION = "Content-Disposition";
     String APPLICATION_OCTET_STREAM = "APPLICATION/OCTET-STREAM";
@@ -63,42 +65,40 @@ public interface Constant {
     String TAIL_INTERVAL = "com.skycong.http-raw.log.tailInterval";
     String HISTORY_NUM = "com.skycong.http-raw.log.history";
     String HISTORY_MAX_CHARS = "com.skycong.http-raw.log.history.maxChars";
-    String STRING4 = "/*";
     String JS_CSS_HTML = "js,css,html";
     String LOG_ID = "hLogId";
+    String PATH_ALL = "/*";
 
     /**
      * 默认 排除的Url
      */
-    Set<String> DEFAULT_URL_EXCLUDE_PATTERNS = new HashSet<String>() {
-        {
+    Set<String> DEFAULT_URL_EXCLUDE_PATTERNS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
             //前端文件
-            add("/**/*.html");
-            add("/**/*.js");
-            add("/**/*.css");
-            add("/**/*.jsp");
+            "/**/*.html",
+            "/**/*.js",
+            "/**/*.css",
+            "/**/*.jsp",
             // 图片
-            add("/**/*.jpg");
-            add("/**/*.png");
-            add("/**/*.gif");
-            add("/**/*.jpeg");
-            add("/**/*.ico");
-            add("/**/*.bmp");
+            "/**/*.jpg",
+            "/**/*.png",
+            "/**/*.gif",
+            "/**/*.jpeg",
+            "/**/*.ico",
+            "/**/*.bmp",
             // 字体
-            add("/**/*.ttf");
-            add("/**/*.woff");
+            "/**/*.ttf",
+            "/**/*.woff",
             // 音视频
-            add("/**/*.mp3");
-            add("/**/*.mp4");
+            "/**/*.mp3",
+            "/**/*.mp4",
             // 文档
-            add("/**/*.word");
-            add("/**/*.ppt");
-            add("/**/*.xls");
-            add("/**/*.xlsx");
-            add("/**/*.pdf");
+            "/**/*.word",
+            "/**/*.ppt",
+            "/**/*.xls",
+            "/**/*.xlsx",
+            "/**/*.pdf",
             // 自有接口
-            add("/httpRawLog/*");
-        }
-    };
+            "/httpRawLog/*"
+    )));
 
 }

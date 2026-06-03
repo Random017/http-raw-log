@@ -107,10 +107,14 @@ public class FormRequestWrapper extends StandardMultipartHttpServletRequest {
             if (part instanceof ApplicationPart) {
                 ApplicationPart applicationPart = (ApplicationPart) part;
                 Field fileItem = ReflectionUtils.findField(ApplicationPart.class, "fileItem");
-                assert fileItem != null;
+                if (fileItem == null) {
+                    throw new ServletException("无法获取ApplicationPart.fileItem字段");
+                }
                 ReflectionUtils.makeAccessible(fileItem);
                 FileItem value = (FileItem) ReflectionUtils.getField(fileItem, applicationPart);
-                assert value != null;
+                if (value == null) {
+                    throw new ServletException("无法获取ApplicationPart.fileItem值");
+                }
                 // 是否是一个表单属性
                 isFile = !value.isFormField();
                 ReflectionUtils.clearCache();

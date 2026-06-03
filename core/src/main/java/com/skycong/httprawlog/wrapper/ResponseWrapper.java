@@ -19,6 +19,11 @@ import java.nio.charset.StandardCharsets;
 public class ResponseWrapper extends HttpServletResponseWrapper {
 
     /**
+     * 响应body最大记录大小（字节），默认1MB，防止OOM
+     */
+    private static final int MAX_RESPONSE_BODY_SIZE = 1024 * 1024;
+
+    /**
      * Constructs a response adaptor wrapping the given response.
      *
      * @param response The response to be wrapped
@@ -46,7 +51,9 @@ public class ResponseWrapper extends HttpServletResponseWrapper {
 
             @Override
             public void write(int b) {
-                byteArrayOutputStream.write(b);
+                if (byteArrayOutputStream.size() < MAX_RESPONSE_BODY_SIZE) {
+                    byteArrayOutputStream.write(b);
+                }
             }
         };
     }

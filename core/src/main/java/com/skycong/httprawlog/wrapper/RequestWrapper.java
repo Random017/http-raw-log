@@ -1,6 +1,7 @@
 package com.skycong.httprawlog.wrapper;
 
 import com.skycong.httprawlog.Constant;
+import com.skycong.httprawlog.filter.HttpRawLogFilter;
 import org.springframework.util.StreamUtils;
 
 import javax.servlet.ReadListener;
@@ -46,7 +47,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
             // 复制request body  inputStream
             bytes = StreamUtils.copyToByteArray(request.getInputStream());
         } catch (IOException e) {
-            e.printStackTrace();
+            HttpRawLogFilter.LOGGER.error("读取request body失败", e);
         }
     }
 
@@ -141,7 +142,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
         try {
             requestBodyOriginString = StreamUtils.copyToString(this.getInputStream(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            e.printStackTrace();
+            HttpRawLogFilter.LOGGER.error("读取request body日志字符串失败", e);
         }
         if (requestBodyOriginString.isEmpty()) return requestBodyOriginString;
         String contentType = this.getContentType();
@@ -151,13 +152,13 @@ public class RequestWrapper extends HttpServletRequestWrapper {
             try {
                 String decode = URLDecoder.decode(requestBodyOriginString, Constant.UTF8);
                 // log 换行，方便查看
-                return decode.replace(Constant.STRING0, Constant.LINE);
+                return decode.replace(Constant.AMPERSAND, Constant.LINE);
             } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
+                HttpRawLogFilter.LOGGER.error("URL解码失败", e);
                 return requestBodyOriginString;
             }
         } else if (contentType.toLowerCase().startsWith(Constant.FORM_DATA)) {
-            String[] split = contentType.split(Constant.STRING3);
+            String[] split = contentType.split(Constant.SEMICOLON);
             if (split.length != 2) {
                 return contentType + "request body cannot resolve，it not contain like this ‘boundary=--------------------------028952705751347888065070’ , size = " + requestBodyOriginString.getBytes().length;
             }
@@ -235,9 +236,9 @@ public class RequestWrapper extends HttpServletRequestWrapper {
             // query string 使用URL encode，需要解码
             queryString = URLDecoder.decode(queryString, Constant.UTF8);
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            HttpRawLogFilter.LOGGER.error("Query string URL解码失败", e);
         }
-        String[] kvs = queryString.split(Constant.STRING0);
+        String[] kvs = queryString.split(Constant.AMPERSAND);
         for (String kv : kvs) {
             if (kv != null && !kv.isEmpty()) {
                 String[] kv0 = kv.split(Constant.EQ, 2);

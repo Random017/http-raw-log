@@ -84,7 +84,7 @@ public class FileAppender {
     /**
      * 停止读取文件
      */
-    public void stop() {
+    public static void stop() {
         isRunning = false;
         executorService.shutdown();
         try {

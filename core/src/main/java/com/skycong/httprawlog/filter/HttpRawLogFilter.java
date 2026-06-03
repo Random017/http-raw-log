@@ -52,6 +52,8 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
 
     public static final Logger LOGGER = LoggerFactory.getLogger(HttpRawLogFilter.class);
 
+    private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+
     /**
      * 需要打印的http header，包括request 和response
      */
@@ -168,13 +170,16 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
 
         // 排除resp 的流
         String responseWrapperContentType = response.getContentType();
-        if (responseWrapperContentType != null &&
-                // 允许打印响应body的content-type
-                (responseWrapperContentType.toLowerCase().contains("text/") || responseWrapperContentType.toLowerCase().contains("application/json"))) {
-            responseBody = new String(bytes, StandardCharsets.UTF_8);
+        if (responseWrapperContentType != null) {
+            String ctLower = responseWrapperContentType.toLowerCase();
+            // 允许打印响应body的content-type
+            if (ctLower.contains("text/") || ctLower.contains("application/json")) {
+                responseBody = new String(bytes, StandardCharsets.UTF_8);
+            } else {
+                responseBody = "response content-type:" + responseWrapperContentType + ", so not log, response body size is " + bytes.length;
+            }
         } else {
-            String s = "response content-type:" + responseWrapperContentType + ", so not log, response body size is " + bytes.length;
-            responseBody = new String(s.getBytes());
+            responseBody = "response content-type:null, so not log, response body size is " + bytes.length;
         }
         httpStatus = String.valueOf(response.getStatus());
         Map<String, String> respHeadMap = new HashMap<>(logHeaders.size());
@@ -199,9 +204,8 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
      * @return true 在排除URL列表中，false 不在
      */
     private boolean excludeMatch(String uri) {
-        final AntPathMatcher urlExcludePattern = new AntPathMatcher();
         for (String excludePattern : urlExcludePatterns) {
-            if (urlExcludePattern.match(excludePattern, uri)) {
+            if (PATH_MATCHER.match(excludePattern, uri)) {
                 return true;
             }
         }

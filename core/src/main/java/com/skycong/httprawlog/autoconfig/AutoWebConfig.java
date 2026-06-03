@@ -46,7 +46,7 @@ public class AutoWebConfig {
          * 需要拦截处理的URL
          */
         String urlPatterns = applicationContext.getEnvironment().getProperty(Constant.LOG_URLS);
-        urlPatterns = isEmpty(urlPatterns) ? Constant.STRING4 : urlPatterns;
+        urlPatterns = isEmpty(urlPatterns) ? Constant.PATH_ALL : urlPatterns;
         String[] split = urlPatterns.split(Constant.SPLIT);
         List<String> collect = Arrays.stream(split).filter(f -> !f.trim().isEmpty()).collect(Collectors.toList());
         String[] strings1 = new String[collect.size()];

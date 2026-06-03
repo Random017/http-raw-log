@@ -172,6 +172,11 @@ public class TestController implements ApplicationContextAware {
                   @PathVariable(value = "p", required = false) String p,
                   HttpServletResponse response) throws IOException {
         log.debug("file = {},abc = {},p = {}", file, abc, p);
+        if (file == null) {
+            response.setContentType("text/plain;charset=UTF-8");
+            response.getWriter().write("未提供文件");
+            return;
+        }
         String downloadContent = System.currentTimeMillis() + " 这是下载内容abc123!@#$";
         String downloadFilename = URLEncoder.encode("abc123中文", "utf8");
         // 指明response的返回对象是文件流
