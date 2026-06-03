@@ -55,3 +55,10 @@ out/
 ### VS Code ###
 .vscode/
 
+### 敏感文件 ###
+*.env
+*.pem
+*.key
+*credentials*
+*secret*
+
