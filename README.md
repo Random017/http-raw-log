@@ -13,7 +13,7 @@
   <dependency>
     <groupId>com.skycong</groupId>
     <artifactId>http-raw-log</artifactId>
-    <version>0.9.11</version>
+    <version>0.9.15</version>
   </dependency>
   ```
   
@@ -96,3 +96,23 @@
   > 2， 服务端返回响应头中回显 hLogId ，用来追踪记录每一次请求
   >
   > 3，使用场景：调试接口时，客户端打印响应头中的 hLogId ，用来标记每一次请求出入参数
+
+---
+
+### 更新日志
+
+#### v0.9.15
+
+- 修复 StatisticsApi 竞态条件，字段添加 volatile，使用 compute() 原子操作
+- 修复 History.java 中无效的 WeakReference，改为普通 ArrayList
+- 替换 RequestWrapper 中的 e.printStackTrace() 为 SLF4J 日志
+- 提取 HttpRawLogFilter 中 AntPathMatcher 为类字段复用，避免每次请求创建新实例
+- 优化 ResponseWrapper 添加 1MB 大小限制防止 OOM
+- 替换 FormRequestWrapper 中无效的 assert 为异常检查
+- 修复 StatisticsApi 中不必要的 parallelStream
+- 修复 HistoryApi 中双重 removeLast() 逻辑错误
+- 优化 Constant 中匿名内部类为 Collections.unmodifiableSet
+- 修复 FileAppender stop() 方法一致性，改为 static
+- 移除 HttpRawLogFilter 中 String.getBytes() 多余转换
+- 简化 HistoryApi 分页逻辑
+- 修复 Constant 中 STRING0/STRING3/STRING4 命名为 AMPERSAND/SEMICOLON/PATH_ALL
