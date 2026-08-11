@@ -42,6 +42,9 @@ subprojects {
 
     tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
+        // 项目目标 Java 8，强制产出 Java 8 字节码，兼容 Spring Boot 2.3.x 的 ASM 组件扫描
+        sourceCompatibility = '1.8'
+        targetCompatibility = '1.8'
     }
 
     java {

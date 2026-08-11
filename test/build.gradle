@@ -30,6 +30,11 @@ dependencies {
     api project(':core')
 }
 
+test {
+    // 使用 JUnit Platform 运行 JUnit 5（jupiter）测试；vintage 引擎可兼容 JUnit 4 测试
+    useJUnitPlatform()
+}
+
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
