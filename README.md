@@ -13,7 +13,7 @@
   <dependency>
     <groupId>com.skycong</groupId>
     <artifactId>http-raw-log</artifactId>
-    <version>0.9.15</version>
+    <version>0.9.16</version>
   </dependency>
   ```
   
@@ -100,6 +100,15 @@
 ---
 
 ### 更新日志
+
+#### v0.9.16
+
+- 新增 RequestWrapper 请求体日志截断：日志字符串上限 4MB，超过部分标记 `[request body truncated]`，避免大请求体导致日志字符串 OOM
+- 业务 body 保持完整：截斷仅作用于日志输出，回放给 Controller 的请求体仍完整，不影响业务
+- 性能优先：请求体单次读取缓存，无额外 drain / 二次遍历开销
+- 新增 test 模块集成测试：`RequestBodyIntegrationTest`（MockMvc 全流程，验证大 body 日志截断但业务 body 完整、小 body 完整无截断）与 `RequestWrapperBodyTest`（组件测试，覆盖 4MB 边界、form-urlencoded 解码、空 body），共 8 个用例
+- 构建配置：test 模块启用 `useJUnitPlatform()` 支持 JUnit5；强制产出 Java8 字节码以兼容 Spring Boot 2.3.x 的 ASM 组件扫描
+- RequestWrapper 代码审查优化：`isFinished` 语义修正、`getParameter` 三元简化、`packageParameterMapAll` 改用 `entrySet` 遍历、修正构造器 javadoc
 
 #### v0.9.15
 
