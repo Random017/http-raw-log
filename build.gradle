@@ -8,10 +8,10 @@ buildscript {
         password1 = System.getProperty("mpass")
         oss_user = System.getProperty("oss_user")
         oss_pass = System.getProperty("oss_pass")
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
 
-        springBootVersion = '2.3.7.RELEASE'
+        springBootVersion = '3.2.5'
     }
 
     repositories {
@@ -42,9 +42,8 @@ subprojects {
 
     tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
-        // 项目目标 Java 8，强制产出 Java 8 字节码，兼容 Spring Boot 2.3.x 的 ASM 组件扫描
-        sourceCompatibility = '1.8'
-        targetCompatibility = '1.8'
+        sourceCompatibility = '17'
+        targetCompatibility = '17'
     }
 
     java {

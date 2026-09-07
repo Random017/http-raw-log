@@ -1,12 +1,8 @@
 package com.skycong.httprawlog2.config;
 
-import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.skycong.httprawlog.api.History;
 import com.skycong.httprawlog.appender.FileAppender;
-import com.yomahub.tlog.context.TLogContext;
-import com.yomahub.tlog.web.common.TLogWebCommon;
-import com.yomahub.tlog.web.interceptor.TLogWebInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -14,11 +10,8 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.TimeZone;
@@ -37,18 +30,10 @@ public class WebConfig extends WebMvcConfigurationSupport {
             public String apply(History history, String s) {
                 boolean contains = s.contains(history.gethLogId());
                 if (!contains) return null;
-                String string = StrUtil.subBetween(s, "traceId=", ", hLogId=");
-                return string;
+                return s;
             }
         });
 
-    }
-
-
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        // Tlog
-        registry.addInterceptor(tLogWebInterceptor);
     }
 
     @Override
@@ -77,15 +62,4 @@ public class WebConfig extends WebMvcConfigurationSupport {
         configurer.setTaskExecutor(threadPoolTaskExecutor);
         configurer.setDefaultTimeout(30000);
     }
-
-
-    private final TLogWebInterceptor tLogWebInterceptor = new TLogWebInterceptor() {
-        @Override
-        public boolean preHandleByHandlerMethod(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-            TLogWebCommon.loadInstance().preHandle(request);
-            // 自定义header 名称
-            response.addHeader("traceId", TLogContext.getTraceId());
-            return true;
-        }
-    };
 }

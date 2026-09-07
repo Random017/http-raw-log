@@ -1,17 +1,13 @@
 package com.skycong.httprawlog.wrapper;
 
 import com.skycong.httprawlog.Constant;
-import org.apache.catalina.core.ApplicationPart;
-import org.apache.tomcat.util.http.fileupload.FileItem;
-import org.springframework.util.ReflectionUtils;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.StandardMultipartHttpServletRequest;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.Part;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -101,27 +97,9 @@ public class FormRequestWrapper extends StandardMultipartHttpServletRequest {
         if (parts == null || parts.isEmpty())
             return map;
         for (Part part : parts) {
-            // part 是否是一个有效的文件
-            boolean isFile;
-            //  Servlet 3.0 upload API that expects Parts.
-            if (part instanceof ApplicationPart) {
-                ApplicationPart applicationPart = (ApplicationPart) part;
-                Field fileItem = ReflectionUtils.findField(ApplicationPart.class, "fileItem");
-                if (fileItem == null) {
-                    throw new ServletException("无法获取ApplicationPart.fileItem字段");
-                }
-                ReflectionUtils.makeAccessible(fileItem);
-                FileItem value = (FileItem) ReflectionUtils.getField(fileItem, applicationPart);
-                if (value == null) {
-                    throw new ServletException("无法获取ApplicationPart.fileItem值");
-                }
-                // 是否是一个表单属性
-                isFile = !value.isFormField();
-                ReflectionUtils.clearCache();
-            } else {
-                // others
-                isFile = part.getContentType() != null && part.getSubmittedFileName() != null;
-            }
+            // 通过标准 Servlet API 判断是否为文件上传：
+            // 非文件的表单字段 submittedFileName 和 contentType 均为 null
+            boolean isFile = part.getSubmittedFileName() != null && part.getContentType() != null;
             if (isFile) {
                 String k = part.getName();
                 String v = String.format("[filename=%s ,content-type=%s ,filesize=%d]", part.getSubmittedFileName(), part.getContentType(), part.getSize());

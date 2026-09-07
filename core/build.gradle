@@ -2,7 +2,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 dependencies {
-    def v = "2.3.7.RELEASE"
+    def v = "3.2.5"
     try {
         v = java.util.Optional.ofNullable(springBootVersion).orElse(v)
     } catch (MissingPropertyException e) {
@@ -11,7 +11,7 @@ dependencies {
     compileOnly "org.springframework.boot:spring-boot-starter-web:${v}"
 }
 
-def coreVersion = '0.9.16'
+def coreVersion = '1.0.0'
 def coreArtifactId = "http-raw-log"
 
 
@@ -28,7 +28,7 @@ publishing {
                 description = ' print http raw log'
                 url = 'https://github.com/Random017/http-raw-log'
                 properties = [
-                        springBootVersion: "2.3.7.RELEASE"
+                        springBootVersion: "3.2.5"
                 ]
                 licenses {
                     license {

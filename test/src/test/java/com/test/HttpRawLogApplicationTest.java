@@ -1,6 +1,7 @@
 package com.test;
 
 import com.skycong.httprawlog2.HttpRawLogApplication;
+import jakarta.servlet.http.Cookie;
 import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.util.Lists;
 import org.hamcrest.core.StringContains;
@@ -19,7 +20,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.util.LinkedMultiValueMap;
 
-import javax.servlet.http.Cookie;
 import java.io.ByteArrayInputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
