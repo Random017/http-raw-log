@@ -84,3 +84,30 @@ def isReleaseVersion(version) {
 }
 
 // 官方配置： https://central.sonatype.org/publish/publish-gradle/
+
+/**
+ * 打包并发布到本地 Maven 仓库，然后将 com 目录打成 zip
+ * 用法: ./gradlew :core:publishAndZip
+ */
+task publishAndZip {
+    description = 'Clean, publish to local repo, then zip the com directory for Maven Central upload'
+    group = 'publishing'
+
+    dependsOn 'clean', 'publish'
+
+    doLast {
+        // 将 build/repo/com 目录打成 zip
+        def repoDir = layout.buildDirectory.dir('repo').get().asFile
+        def zipFile = layout.buildDirectory.file("http-raw-log-${coreVersion}.zip").get().asFile
+
+        if (repoDir.exists()) {
+            ant.zip(destfile: zipFile) {
+                fileset(dir: repoDir)
+            }
+            println "✅ ZIP 已生成: ${zipFile.absolutePath}"
+            println "📦 请上传到 https://central.sonatype.com/publish"
+        } else {
+            println "❌ 目录不存在: ${repoDir.absolutePath}"
+        }
+    }
+}
