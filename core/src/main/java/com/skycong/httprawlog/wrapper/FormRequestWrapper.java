@@ -9,10 +9,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.Part;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 
 /**
  * 处理 multipart/form-data 格式请求，这种类型请求伴随这文件上传和参数传递
@@ -62,7 +62,7 @@ public class FormRequestWrapper extends StandardMultipartHttpServletRequest {
 
     @Override
     public Enumeration<String> getParameterNames() {
-        return new Vector<>(map.keySet()).elements();
+        return Collections.enumeration(map.keySet());
     }
 
     @Override

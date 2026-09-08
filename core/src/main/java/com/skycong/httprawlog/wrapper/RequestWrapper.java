@@ -15,11 +15,11 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.Vector;
 
 /**
  * 缓存 request 中的 inputStream， 由于inputStream只能读取一次就会终止，需要将其包装成一个可重复读取的 inputStream
@@ -168,7 +168,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
 
     @Override
     public Enumeration<String> getParameterNames() {
-        return new Vector<>(map.keySet()).elements();
+        return Collections.enumeration(map.keySet());
     }
 
     @Override
