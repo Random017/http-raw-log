@@ -22,22 +22,20 @@ public class RequestWrapperBodyTest {
     private static final int FOUR_MB = 4 * 1024 * 1024;
 
     /**
-     * 5MB 请求体：getInputStream() 回放必须完整；日志字符串截断并带标记。
+     * 5MB 请求体：源头截断到 4MB，getInputStream() 回放截断后的内容。
      */
     @Test
-    void largeBody_replayCompleteAndLogTruncated() throws IOException {
+    void largeBody_truncatedAtSource() throws IOException {
         byte[] body = filled(FOUR_MB + 1024 * 1024, (byte) 'A');
         RequestWrapper wrapper = wrap(body, "application/json");
 
-        // 业务回放 body 完整
+        // 业务回放 body 被截断到 4MB（源头截断，防 OOM）
         byte[] replayed = StreamUtils.copyToByteArray(wrapper.getInputStream());
-        assertArrayEquals(body, replayed);
+        assertEquals(FOUR_MB, replayed.length);
 
-        // 日志截断
+        // 日志也是截断后的内容
         String log = wrapper.getRequestBodyLogString();
-        assertTrue(log.contains("[request body truncated"));
-        assertTrue(log.length() > FOUR_MB);
-        assertTrue(log.length() < FOUR_MB + 300);
+        assertEquals(FOUR_MB, log.length());
     }
 
     /**

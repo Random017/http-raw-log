@@ -84,7 +84,7 @@ public class HistoryApi implements HistoryRecord {
     public void consoleLog(History history) {
         StringBuilder sb = new StringBuilder();
         sb.append('\n')
-                .append("--------------> http raw data ").append(logf1("hLogId:")).append(history.gethLogId()).append('\n')
+                .append("--------------> http raw data ").append(logf1("hLogId:")).append(history.gethLogId()).append("  ").append(history.getCost()).append(" ms").append('\n')
                 .append(logf2("[url]")).append(":").append(history.getMethod()).append('\t').append(history.getUrl()).append('\n')
                 .append(logf2("[request headers]")).append(":").append(history.getRequestHeaders()).append('\n');
         if (!history.getQueryString().isEmpty()) {

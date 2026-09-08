@@ -2,7 +2,6 @@ package com.skycong.httprawlog.wrapper;
 
 import com.skycong.httprawlog.Constant;
 import com.skycong.httprawlog.filter.HttpRawLogFilter;
-import org.springframework.util.StreamUtils;
 
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
@@ -43,21 +42,72 @@ public class RequestWrapper extends HttpServletRequestWrapper {
         // 必须先读取 ParameterMap ，后读取 request.getInputStream() link：https://www.jianshu.com/p/0586e757e0af
         map = packageParameterMapAll(super.getParameterMap(), getQueryStringMap(super.getQueryString()), isParameterEncode(formDataEncodeFlag));
         try {
-            // 复制request body  inputStream（完整缓存，保证业务回放 body 完整；仅日志按需截断）
-            bytes = StreamUtils.copyToByteArray(request.getInputStream());
+            byte[] result = readRequestBody(request);
+            bytes = result;
         } catch (IOException e) {
             HttpRawLogFilter.LOGGER.error("读取request body失败", e);
             bytes = new byte[0];
         }
-        // 仅用于日志截断判断：body 超过上限时日志只记录前 MAX_REQUEST_BODY_SIZE 字节
-        requestBodyTruncated = bytes.length > MAX_REQUEST_BODY_SIZE;
     }
 
     /**
-     * 请求体最大日志缓存大小（字节），默认 4MB。
-     * 仅用于限制日志打印内容，业务回放（Controller 收到的 body）始终完整，不受此上限影响。
+     * 读取 request body，优先用 Content-Length 精确分配 buffer，超限时截断。
+     * 读取完成后通过 requestBodyTruncated 标记是否发生了截断。
+     *
+     * @param request HTTP 请求
+     * @return 缓存的 body 字节数组
+     */
+    private byte[] readRequestBody(HttpServletRequest request) throws IOException {
+        int contentLength = request.getContentLength();
+        java.io.InputStream is = request.getInputStream();
+
+        if (contentLength > 0 && contentLength <= MAX_REQUEST_BODY_SIZE) {
+            // Content-Length 已知且未超限：精确分配，一次读完
+            byte[] buf = new byte[contentLength];
+            int offset = 0;
+            while (offset < contentLength) {
+                int read = is.read(buf, offset, contentLength - offset);
+                if (read == -1) break;
+                offset += read;
+            }
+            requestBodyTruncated = false;
+            return buf;
+        }
+
+        // Content-Length 未知(-1)或超限：分级扩容读取，上限 4MB
+        byte[] buf = new byte[INITIAL_BUFFER_SIZE];
+        int pos = 0;
+        int len;
+        while ((len = is.read(buf, pos, buf.length - pos)) != -1) {
+            pos += len;
+            if (pos >= MAX_REQUEST_BODY_SIZE) {
+                // 读满上限，尝试读完剩余数据（丢弃），然后标记截断
+                byte[] discard = new byte[8192];
+                while (is.read(discard) != -1) {
+                    // 丢弃剩余数据
+                }
+                requestBodyTruncated = true;
+                return Arrays.copyOf(buf, MAX_REQUEST_BODY_SIZE);
+            }
+            if (pos == buf.length) {
+                int newCap = Math.min(buf.length * 2, MAX_REQUEST_BODY_SIZE);
+                buf = Arrays.copyOf(buf, newCap);
+            }
+        }
+        requestBodyTruncated = false;
+        return Arrays.copyOf(buf, pos);
+    }
+
+    /**
+     * 请求体最大缓存大小（字节），默认 4MB。
+     * 超出部分丢弃，业务侧和日志侧均只拿到截断后的内容。
      */
     private static final int MAX_REQUEST_BODY_SIZE = 4 * 1024 * 1024;
+
+    /**
+     * 分级扩容初始容量 8KB
+     */
+    private static final int INITIAL_BUFFER_SIZE = 8 * 1024;
 
     /**
      * 请求体

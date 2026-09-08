@@ -47,10 +47,10 @@ public class RequestBodyIntegrationTest {
     MockMvc mockMvc;
 
     /**
-     * 大请求体（5MB）：业务侧完整收到，日志 requestBody 被截断到 4MB 并带标记。
+     * 大请求体（5MB）：源头截断到 4MB，业务侧和日志侧均拿到截断后的内容。
      */
     @Test
-    void largeBody_businessCompleteAndLogTruncated() throws Exception {
+    void largeBody_businessAndLogTruncated() throws Exception {
         String body = repeat('A', FIVE_MB);
         byte[] content = body.getBytes(StandardCharsets.US_ASCII);
 
@@ -60,18 +60,15 @@ public class RequestBodyIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        // 1) 业务侧拿到的 body 必须完整
-        assertEquals(FIVE_MB, com.skycong.httprawlog2.EchoTestController.lastReceivedBody.length());
-        assertEquals(body, com.skycong.httprawlog2.EchoTestController.lastReceivedBody);
+        // 1) 业务侧拿到的 body 被截断到 4MB（源头截断，防 OOM）
+        assertEquals(FOUR_MB, com.skycong.httprawlog2.EchoTestController.lastReceivedBody.length());
 
-        // 2) 记录的日志 requestBody 被截断到 4MB 并带标记
+        // 2) 记录的日志 requestBody 也是截断后的内容
         String hLogId = result.getResponse().getHeader("hLogId");
         assertNotNull(hLogId);
         String requestBody = requestBodyOf(hLogId);
         assertNotNull(requestBody);
-        assertTrue(requestBody.contains("[request body truncated"), "日志 requestBody 应被截断并带标记");
-        assertTrue(requestBody.length() > FOUR_MB, "日志应大于 4MB（含截断标记）");
-        assertTrue(requestBody.length() < FOUR_MB + 300, "日志不应显著超过 4MB + 标记长度");
+        assertEquals(FOUR_MB, requestBody.length());
     }
 
     /**

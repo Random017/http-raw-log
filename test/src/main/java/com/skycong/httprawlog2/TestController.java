@@ -143,6 +143,20 @@ public class TestController implements ApplicationContextAware {
         return "OK";
     }
 
+    /**
+     * 返回超过 1MB 的响应体，用于验证 ResponseWrapper 是否截断了客户端收到的内容
+     */
+    @GetMapping("largeResponse")
+    String largeResponse() {
+        // 生成 2MB 的字符串
+        StringBuilder sb = new StringBuilder();
+        String chunk = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        while (sb.length() < 2 * 1024 * 1024) {
+            sb.append(chunk);
+        }
+        return sb.substring(0, 2 * 1024 * 1024);
+    }
+
 
     @PostMapping("upload/{p}")
     Object upload(

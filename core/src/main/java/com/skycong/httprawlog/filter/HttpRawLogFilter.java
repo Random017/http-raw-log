@@ -158,9 +158,10 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
             requestBody = requestWrapper.getRequestBodyLogString();
             chain.doFilter(requestWrapper, responseWrapper);
         }
-        // 将response steam 重新写入返回
-        byte[] bytes = responseWrapper.getByteArrayOutputStream();
-        response.getOutputStream().write(bytes);
+        // 直接引用 ResponseWrapper 的 buffer，零拷贝写回客户端
+        byte[] buffer = responseWrapper.getBuffer();
+        int len = responseWrapper.getWritePos();
+        response.getOutputStream().write(buffer, 0, len);
         response.getOutputStream().flush();
         long et = System.currentTimeMillis();
         if (logStatistics) {
@@ -168,18 +169,15 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
             StatisticsApi.statistics(requestURL, (int) (et - st));
         }
 
-        // 排除resp 的流
-        String responseWrapperContentType = response.getContentType();
-        if (responseWrapperContentType != null) {
-            String ctLower = responseWrapperContentType.toLowerCase();
-            // 允许打印响应body的content-type
-            if (ctLower.contains("text/") || ctLower.contains("application/json")) {
-                responseBody = new String(bytes, StandardCharsets.UTF_8);
-            } else {
-                responseBody = "response content-type:" + responseWrapperContentType + ", so not log, response body size is " + bytes.length;
+        // 日志侧：直接使用 buffer（零拷贝），按需截断
+        if (isTextContent(buffer, len)) {
+            responseBody = new String(buffer, 0, len, StandardCharsets.UTF_8);
+            if (responseWrapper.isOverflow()) {
+                responseBody += "\n... [response body truncated, only first " + ResponseWrapper.MAX_LOG_BODY_SIZE + " bytes logged]";
             }
         } else {
-            responseBody = "response content-type:null, so not log, response body size is " + bytes.length;
+            String ct = response.getContentType();
+            responseBody = "response content-type:" + ct + ", so not log, response body size is " + len;
         }
         httpStatus = String.valueOf(response.getStatus());
         Map<String, String> respHeadMap = new HashMap<>(logHeaders.size());
@@ -192,8 +190,9 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
         responseHeaders = respHeadMap.toString();
 
         // 记录日志
+        long cost = et - st;
         historyRecord.record(new History(LocalDateTime.now().toString(), logId, method, requestURL, requestHeaders, queryStringLog,
-                requestBody, httpStatus, responseHeaders, responseBody));
+                requestBody, httpStatus, responseHeaders, responseBody, cost));
     }
 
 
@@ -210,5 +209,27 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
             }
         }
         return false;
+    }
+
+    /**
+     * 判断字节数组内容是否为可读文本。
+     * 检测前 {@code len} 字节中是否包含 null 字节（\0），包含则视为二进制内容。
+     * 空数组视为文本（空响应体）。
+     *
+     * @param bytes 字节数组
+     * @param len   有效字节数
+     * @return true 是文本内容，false 是二进制内容
+     */
+    static boolean isTextContent(byte[] bytes, int len) {
+        if (bytes == null || len == 0) {
+            return true;
+        }
+        int limit = Math.min(len, 128);
+        for (int i = 0; i < limit; i++) {
+            if (bytes[i] == 0) {
+                return false;
+            }
+        }
+        return true;
     }
 }

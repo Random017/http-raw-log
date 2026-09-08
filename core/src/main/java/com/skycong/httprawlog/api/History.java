@@ -37,6 +37,8 @@ public class History implements Serializable {
     private String responseStatus;
     private String responseHeaders;
     private String responseBody;
+    // 接口耗时（毫秒）
+    private long cost;
     // txId
     private String txId;
     // 链路日志
@@ -45,7 +47,7 @@ public class History implements Serializable {
     public History() {
     }
 
-    public History(String time, String hLogId, String method, String url, String requestHeaders, String queryString, String requestBody, String responseStatus, String responseHeaders, String responseBody) {
+    public History(String time, String hLogId, String method, String url, String requestHeaders, String queryString, String requestBody, String responseStatus, String responseHeaders, String responseBody, long cost) {
         this.time = time;
         this.hLogId = hLogId;
         this.method = method;
@@ -56,6 +58,7 @@ public class History implements Serializable {
         this.responseStatus = responseStatus;
         this.responseHeaders = responseHeaders;
         this.responseBody = responseBody;
+        this.cost = cost;
     }
 
     public String getTime() {
@@ -138,6 +141,14 @@ public class History implements Serializable {
         this.responseBody = responseBody;
     }
 
+    public long getCost() {
+        return cost;
+    }
+
+    public void setCost(long cost) {
+        this.cost = cost;
+    }
+
     public String getTxId() {
         return txId;
     }
@@ -168,6 +179,7 @@ public class History implements Serializable {
         sb.append(", responseStatus='").append(responseStatus).append('\'');
         sb.append(", responseHeaders='").append(responseHeaders).append('\'');
         sb.append(", responseBody='").append(responseBody).append('\'');
+        sb.append(", cost=").append(cost);
         sb.append('}');
         return sb.toString();
     }
