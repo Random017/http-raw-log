@@ -138,12 +138,17 @@
 ./gradlew :core:publishToMavenLocal
 
 # 正式发布：生成签名产物并打包成 Maven Central 上传 zip
-# 密钥可通过 -PsigningKey/-PsigningPassword 或环境变量 SIGNING_KEY/SIGNING_PASSWORD 提供
+# 本机推荐先在本机 ~/.gradle/gradle.properties 配置
+# signing.keyId / signing.password / signing.secretKeyRingFile
+./gradlew :core:publishAndZip
+
+# CI 或临时环境可用 in-memory key
 SIGNING_KEY="$(cat private.pgp)" SIGNING_PASSWORD='***' ./gradlew :core:publishAndZip
 ```
 
-- `publishAndZip` 的产物位于 `core/build/http-raw-log-<version>.zip`，上传到 <https://central.sonatype.com/publish>。
-- 没有配置签名密钥时，`signing` 会被跳过，`publishToMavenLocal` 仍可正常使用；正式发布必须提供密钥。
+- 本机签名使用 Gradle `signing` 插件的标准属性 `signing.keyId`/`signing.password`/`signing.secretKeyRingFile`，配置一次即可；CI 继续使用 `SIGNING_KEY`/`SIGNING_PASSWORD`，也可用 `-PsigningKey/-PsigningPassword`。
+- `publishAndZip` 的产物位于 `core/build/http-raw-log-<version>.zip`，上传到 <https://central.sonatype.com/publish>；正常会生成 5 个 `.asc`。
+- 没有配置签名密钥时，`signing` 会被跳过，`publishToMavenLocal` 仍可正常使用；没有 `.asc` 的 zip 不能提交到 Central。
 - CI 配置：GitHub Actions 见 `.github/workflows/ci.yml`（JDK 17 + Gradle Wrapper）；Gitee Go 见 `.workflow/MasterPipeline.yml`。
 - 完整的 GPG 密钥准备、Central Portal 上传步骤和 CI 说明见 [项目维护指南 §4](doc/项目维护指南.md)。
 

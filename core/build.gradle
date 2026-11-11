@@ -94,18 +94,35 @@ publishing {
     }
 }
 
-// 有签名密钥时才启用 signing，避免本地/CI 没有 GPG 时 publish 直接失败。
-// 用法：-PsigningKey=... -PsigningPassword=...，或环境变量 SIGNING_KEY / SIGNING_PASSWORD。
-def signingKey = findProperty('signingKey') ?: System.getenv('SIGNING_KEY')
-def signingPassword = findProperty('signingPassword') ?: System.getenv('SIGNING_PASSWORD')
-if (signingKey && signingPassword) {
+// 签名支持两种来源，优先级：in-memory > keyring。
+// 1) CI/临时：-PsigningKey/-PsigningPassword，或环境变量 SIGNING_KEY/SIGNING_PASSWORD；
+// 2) 本机：~/.gradle/gradle.properties 中的标准 signing.keyId / signing.password / signing.secretKeyRingFile。
+def inMemorySigningKey = findProperty('signingKey') ?: System.getenv('SIGNING_KEY')
+def inMemorySigningPassword = findProperty('signingPassword') ?: System.getenv('SIGNING_PASSWORD')
+def keyRingFile = findProperty('signing.secretKeyRingFile')
+def keyRingKeyId = findProperty('signing.keyId')
+def keyRingPassword = findProperty('signing.password')
+
+def hasInMemorySigning = inMemorySigningKey && inMemorySigningPassword
+def hasKeyRingSigning = keyRingFile && keyRingKeyId && keyRingPassword && file(keyRingFile).isFile()
+def signingConfigured = hasInMemorySigning || hasKeyRingSigning
+
+if (signingConfigured) {
     apply plugin: 'signing'
     signing {
-        useInMemoryPgpKeys(signingKey.toString(), signingPassword.toString())
+        if (hasInMemorySigning) {
+            useInMemoryPgpKeys(inMemorySigningKey.toString(), inMemorySigningPassword.toString())
+        }
+        // keyring 模式不传 signatory，signing 插件自动读取
+        // signing.keyId / signing.password / signing.secretKeyRingFile
         sign publishing.publications.mavenJava
     }
+} else if (keyRingFile || keyRingKeyId || keyRingPassword) {
+    logger.warn('signing is skipped: signing.keyId/signing.password/signing.secretKeyRingFile ' +
+            'are incomplete or the secret key ring file does not exist')
 } else {
-    logger.lifecycle('signing is skipped: set signingKey/signingPassword or SIGNING_KEY/SIGNING_PASSWORD to sign artifacts')
+    logger.lifecycle('signing is skipped: configure signing.* in ~/.gradle/gradle.properties, ' +
+            'or set signingKey/signingPassword or SIGNING_KEY/SIGNING_PASSWORD')
 }
 
 def isReleaseVersion(version) {
@@ -130,11 +147,15 @@ task publishAndZip {
         def zipFile = layout.buildDirectory.file("http-raw-log-${project.version}.zip").get().asFile
 
         if (repoDir.exists()) {
+            def signedFiles = fileTree(repoDir).matching { include '**/*.asc' }.files
             ant.zip(destfile: zipFile) {
                 fileset(dir: repoDir)
             }
-            if (!signingKey || !signingPassword) {
-                println "⚠️ 未配置签名密钥：zip 中没有 .asc，Maven Central 会拒绝；请设置 signingKey/signingPassword 后重试"
+            if (signedFiles.isEmpty()) {
+                println "⚠️ 未生成 .asc：Maven Central 会拒绝该 zip；请配置 ~/.gradle/gradle.properties 的 signing.*，" +
+                        "或设置 SIGNING_KEY/SIGNING_PASSWORD 后重试"
+            } else {
+                println "🔏 已生成 ${signedFiles.size()} 个签名文件"
             }
             println "✅ ZIP 已生成: ${zipFile.absolutePath}"
             println "📦 请上传到 https://central.sonatype.com/publish"
