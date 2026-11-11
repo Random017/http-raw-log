@@ -4,7 +4,7 @@ apply plugin: 'io.spring.dependency-management'
 
 dependencies {
 
-    def v = "2.3.7.RELEASE"
+    def v = "3.2.5"
     try {
         v = java.util.Optional.ofNullable(springBootVersion).orElse(v)
     } catch (MissingPropertyException e) {

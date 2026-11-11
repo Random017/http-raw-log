@@ -1,8 +1,9 @@
 package com.skycong.httprawlog2.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.skycong.httprawlog.api.History;
 import com.skycong.httprawlog.appender.FileAppender;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -15,7 +16,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupp
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.TimeZone;
-import java.util.function.BiFunction;
 
 /**
  * @author ruanmingcong
@@ -24,16 +24,15 @@ import java.util.function.BiFunction;
 @Configuration
 public class WebConfig extends WebMvcConfigurationSupport {
 
-    static {
-        FileAppender.setTxIdFunction(new BiFunction<History, String, String>() {
-            @Override
-            public String apply(History history, String s) {
-                boolean contains = s.contains(history.gethLogId());
-                if (!contains) return null;
-                return s;
-            }
-        });
+    @Autowired(required = false)
+    private FileAppender fileAppender;
 
+    @PostConstruct
+    void configureFileAppender() {
+        if (fileAppender == null) {
+            return;
+        }
+        fileAppender.setTxIdFunction((history, line) -> line.contains(history.gethLogId()) ? line : null);
     }
 
     @Override

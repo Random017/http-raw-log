@@ -1,17 +1,24 @@
 apply plugin: 'maven-publish'
-apply plugin: 'signing'
 
-dependencies {
-    def v = "3.2.5"
-    try {
-        v = java.util.Optional.ofNullable(springBootVersion).orElse(v)
-    } catch (MissingPropertyException e) {
-    }
-    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:${v}"
-    compileOnly "org.springframework.boot:spring-boot-starter-web:${v}"
+def bootVersion = "3.2.5"
+try {
+    bootVersion = java.util.Optional.ofNullable(springBootVersion).orElse(bootVersion)
+} catch (MissingPropertyException e) {
 }
 
-def coreVersion = '1.0.1'
+dependencies {
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:${bootVersion}"
+    // 仅编译期需要；运行期由宿主应用的 Spring Boot 提供
+    compileOnly "org.springframework.boot:spring-boot-starter-web:${bootVersion}"
+}
+
+// 给 JPMS 使用方一个稳定的自动模块名，避免用 jar 文件名推导
+jar {
+    manifest {
+        attributes('Automatic-Module-Name': 'com.skycong.httprawlog')
+    }
+}
+
 def coreArtifactId = "http-raw-log"
 
 
@@ -20,7 +27,7 @@ publishing {
         mavenJava(MavenPublication) {
             groupId project.group
             artifactId coreArtifactId
-            version coreVersion
+            version project.version
             from components.java
 
             pom {
@@ -28,7 +35,7 @@ publishing {
                 description = ' print http raw log'
                 url = 'https://github.com/Random017/http-raw-log'
                 properties = [
-                        springBootVersion: "3.2.5"
+                        springBootVersion: bootVersion
                 ]
                 licenses {
                     license {
@@ -48,14 +55,26 @@ publishing {
                     developerConnection = 'scm:git:https://github.com/Random017/http-raw-log.git'
                     url = 'https://github.com/Random017/http-raw-log'
                 }
+                // compileOnly 不会进入 POM，这里显式声明为 provided + optional，
+                // 避免使用方只拿到一个“零依赖”的 jar 后在编译/IDE 中缺类。
+                withXml {
+                    def root = asNode()
+                    def dependenciesNode = root.children().find { it.name() == 'dependencies' }
+                    def deps = dependenciesNode ?: root.appendNode('dependencies')
+                    def dependency = deps.appendNode('dependency')
+                    dependency.appendNode('groupId', 'org.springframework.boot')
+                    dependency.appendNode('artifactId', 'spring-boot-starter-web')
+                    dependency.appendNode('version', bootVersion)
+                    dependency.appendNode('scope', 'provided')
+                    dependency.appendNode('optional', 'true')
+                }
             }
         }
     }
 
 //    repositories {
 //        maven {
-////            url project.version.endsWith("-SNAPSHOT") ? nexusSnapshotUrl : nexusReleaseUrl
-//            if (coreVersion.endsWith("-SNAPSHOT")) {
+//            if (project.version.endsWith("-SNAPSHOT")) {
 //                url "https://s01.oss.sonatype.org/content/repositories/snapshots/"
 //            } else {
 //                url "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
@@ -75,8 +94,18 @@ publishing {
     }
 }
 
-signing {
-    sign publishing.publications.mavenJava
+// 有签名密钥时才启用 signing，避免本地/CI 没有 GPG 时 publish 直接失败。
+// 用法：-PsigningKey=... -PsigningPassword=...，或环境变量 SIGNING_KEY / SIGNING_PASSWORD。
+def signingKey = findProperty('signingKey') ?: System.getenv('SIGNING_KEY')
+def signingPassword = findProperty('signingPassword') ?: System.getenv('SIGNING_PASSWORD')
+if (signingKey && signingPassword) {
+    apply plugin: 'signing'
+    signing {
+        useInMemoryPgpKeys(signingKey.toString(), signingPassword.toString())
+        sign publishing.publications.mavenJava
+    }
+} else {
+    logger.lifecycle('signing is skipped: set signingKey/signingPassword or SIGNING_KEY/SIGNING_PASSWORD to sign artifacts')
 }
 
 def isReleaseVersion(version) {
@@ -98,11 +127,14 @@ task publishAndZip {
     doLast {
         // 将 build/repo/com 目录打成 zip
         def repoDir = layout.buildDirectory.dir('repo').get().asFile
-        def zipFile = layout.buildDirectory.file("http-raw-log-${coreVersion}.zip").get().asFile
+        def zipFile = layout.buildDirectory.file("http-raw-log-${project.version}.zip").get().asFile
 
         if (repoDir.exists()) {
             ant.zip(destfile: zipFile) {
                 fileset(dir: repoDir)
+            }
+            if (!signingKey || !signingPassword) {
+                println "⚠️ 未配置签名密钥：zip 中没有 .asc，Maven Central 会拒绝；请设置 signingKey/signingPassword 后重试"
             }
             println "✅ ZIP 已生成: ${zipFile.absolutePath}"
             println "📦 请上传到 https://central.sonatype.com/publish"

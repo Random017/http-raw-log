@@ -4,7 +4,7 @@
       "name": "com.skycong.http-raw.log.open",
       "type": "java.lang.Boolean",
       "defaultValue": "true",
-      "description": "是否开启 http-raw-log，默认 true."
+      "description": "是否开启 http-raw-log（关闭时不注册 filter 及 /httpRawLog/* 调试接口），默认 true."
     },
     {
       "name": "com.skycong.http-raw.log",
@@ -29,16 +29,6 @@
       "description": "需要排除的URI，参考org.springframework.util.AntPathMatcher实现, 示例/test/*, 多个URL时使用‘,’ 分隔."
     },
     {
-      "name": "com.skycong.http-raw.log.url.exclude-suffix",
-      "type": "java.lang.String",
-      "defaultValue": "js,css,html",
-      "description": "URI 排除的后缀（eg： abc.html 的后缀是 html），多个URL时使用‘,’ 分隔，默认 js,css,html.",
-      "deprecation": {
-        "level": "error",
-        "replacement": "com.skycong.http-raw.log.url.exclude"
-      }
-    },
-    {
       "name": "com.skycong.http-raw.log.headers",
       "type": "java.lang.String",
       "defaultValue": "content-type",
@@ -53,14 +43,43 @@
     {
       "name": "com.skycong.http-raw.log.history",
       "type": "java.lang.Integer",
-      "defaultValue": "1",
-      "description": "保留最近的请求历史记录，如果为0则不保留，默认保留最近的1个请求日志."
+      "defaultValue": "0",
+      "description": "保留最近的请求历史记录条数，默认 0（不存储历史，仅控制台输出）；小于等于 0 均不存储."
     },
     {
       "name": "com.skycong.http-raw.log.history.maxChars",
       "type": "java.lang.Integer",
       "defaultValue": "203",
-      "description": "response body 最大字符长度，默认 203，超过该长度会被截断，小于0表示不截断."
+      "description": "控制台打印的 response body 最大字符长度，默认 203；小于等于 0 表示不截断，1~3 直接截断到该长度."
+    },
+    {
+      "name": "com.skycong.http-raw.log.history.maxBodyBytes",
+      "type": "java.lang.Integer",
+      "defaultValue": "32768",
+      "description": "历史记录中单个 queryString/requestBody/responseBody 的最大字节数，默认 32KB，超出按 UTF-8 安全截断."
+    },
+    {
+      "name": "com.skycong.http-raw.log.console.colors",
+      "type": "java.lang.Boolean",
+      "description": "控制台日志是否输出 ANSI 颜色；默认跟随 System.console()，重定向到文件/非 TTY 时会自动关闭，也可显式配置."
+    },
+    {
+      "name": "com.skycong.http-raw.log.history.maxTotalBytes",
+      "type": "java.lang.Long",
+      "defaultValue": "4194304",
+      "description": "历史记录总字节数上限，默认 4MB；与 history 条数上限同时生效，超出淘汰最旧记录."
+    },
+    {
+      "name": "com.skycong.http-raw.log.maxRequestBodyBytes",
+      "type": "java.lang.Integer",
+      "defaultValue": "65536",
+      "description": "请求体日志上限，默认 64KB；有 Content-Length 且超过上限、二进制、压缩时不再包装请求；form/multipart 的未知长度仍跳过；普通 chunked 请求有界预读（缓冲按需扩容）并把剩余 body 回放给业务."
+    },
+    {
+      "name": "com.skycong.http-raw.log.maxResponseLogBytes",
+      "type": "java.lang.Integer",
+      "defaultValue": "65536",
+      "description": "响应体日志上限，默认 64KB；仅影响日志，客户端始终收到完整响应。二进制、附件、压缩和 SSE 响应跳过捕获."
     },
     {
       "name": "com.skycong.http-raw.log.statistics",

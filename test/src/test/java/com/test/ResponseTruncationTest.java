@@ -10,12 +10,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 验证 ResponseWrapper 是否截断了超过 1MB 的响应体，
- * 导致客户端收到的内容不完整。
+ * 验证大响应：客户端收到完整内容；历史接口里的 responseBody 按存储上限截断。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         classes = HttpRawLogApplication.class)
@@ -28,22 +29,31 @@ public class ResponseTruncationTest {
 
     /**
      * /test/largeResponse 返回 2MB 字符串。
-     * 如果 ResponseWrapper 的 MAX_RESPONSE_BODY_SIZE (1MB) 截断了内容，
-     * 客户端收到的长度会小于 2MB。
+     * 客户端必须收到完整 2MB；history 中的 responseBody 只保留 32KB 并带截断标记。
      */
     @Test
-    void largeResponseBodyShouldNotBeTruncated() throws Exception {
+    void largeResponseBody_clientComplete_historyTruncated() throws Exception {
         int expectedSize = 2 * 1024 * 1024;
 
         MvcResult result = mockMvc.perform(get("/test/largeResponse"))
-                .andDo(print())
+                .andExpect(status().isOk())
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
-        System.out.println("Response body size: " + body.length() + " bytes");
-        System.out.println("Expected size: " + expectedSize + " bytes");
-
         assertEquals(expectedSize, body.length(),
                 "Response body was truncated! Expected " + expectedSize + " but got " + body.length());
+
+        String hLogId = result.getResponse().getHeader("hLogId");
+        assertNotNull(hLogId);
+        MvcResult historyResult = mockMvc.perform(get("/httpRawLog/history").param("hLogId", hLogId))
+                .andExpect(status().isOk())
+                .andReturn();
+        String historyJson = historyResult.getResponse().getContentAsString();
+        assertTrue(historyJson.contains("truncated, total size ="),
+                "history responseBody should be truncated; actual head: "
+                        + historyJson.substring(0, Math.min(historyJson.length(), 400)));
+        assertTrue(historyJson.contains("maxBodyBytes=32768"));
+        assertTrue(historyJson.length() < 40 * 1024,
+                "history JSON should stay bounded, actual=" + historyJson.length());
     }
 }

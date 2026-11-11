@@ -27,10 +27,11 @@ buildscript {
 
 allprojects {
     group = 'com.skycong'
-    version = '0.2-SNAPSHOT'
 }
 
 subprojects {
+    // 版本唯一来源：gradle.properties 中的 version
+    version = rootProject.version
     apply plugin: 'java'
     apply plugin: 'java-library'
 
@@ -53,10 +54,9 @@ subprojects {
 
     javadoc {
         options.encoding = "UTF-8"
+        options.addStringOption('Xdoclint:none', '-quiet')
         if (JavaVersion.current().isJava9Compatible()) {
             options.addBooleanOption('html5', true)
         }
     }
-
-    tasks.withType(Javadoc).all { enabled = false }
 }

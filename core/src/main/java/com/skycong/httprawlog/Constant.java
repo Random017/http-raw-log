@@ -36,7 +36,7 @@ public interface Constant {
     /**
      * 普通表单数据，请求体如下
      * <pre>
-     *     form1=form-data-&form2=%E5%90%AB%E8%87%AA%E8%B4%B9%E5%95%8A1123
+     *     form1=form-data-&amp;form2=%E5%90%AB%E8%87%AA%E8%B4%B9%E5%95%8A1123
      * </pre>
      * 表单数据被URL编码了，需要解码操作
      */
@@ -52,9 +52,9 @@ public interface Constant {
     String CONTENT_DISPOSITION = "Content-Disposition";
     String APPLICATION_OCTET_STREAM = "APPLICATION/OCTET-STREAM";
     String CONTENT_TYPE = "content-type";
+    String LOG_OPEN = "com.skycong.http-raw.log.open";
     String LOG_URLS = "com.skycong.http-raw.log.urls";
     String LOG_URL_EXCLUDE = "com.skycong.http-raw.log.url.exclude";
-    String LOG_URL_EXCLUDE_SUFFIX = "com.skycong.http-raw.log.url.exclude-suffix";
     @Deprecated
     String LOG_QUERY_STRING_ENCODE = "com.skycong.http-raw.log.query-string.encode";
     String LOG_FORM_DATA_ENCODE = "com.skycong.http-raw.log.form-data.encode";
@@ -65,6 +65,11 @@ public interface Constant {
     String TAIL_INTERVAL = "com.skycong.http-raw.log.tailInterval";
     String HISTORY_NUM = "com.skycong.http-raw.log.history";
     String HISTORY_MAX_CHARS = "com.skycong.http-raw.log.history.maxChars";
+    String HISTORY_MAX_BODY_BYTES = "com.skycong.http-raw.log.history.maxBodyBytes";
+    String HISTORY_MAX_TOTAL_BYTES = "com.skycong.http-raw.log.history.maxTotalBytes";
+    String CONSOLE_COLORS = "com.skycong.http-raw.log.console.colors";
+    String MAX_REQUEST_BODY_BYTES = "com.skycong.http-raw.log.maxRequestBodyBytes";
+    String MAX_RESPONSE_LOG_BYTES = "com.skycong.http-raw.log.maxResponseLogBytes";
     String JS_CSS_HTML = "js,css,html";
     String LOG_ID = "hLogId";
     String PATH_ALL = "/*";

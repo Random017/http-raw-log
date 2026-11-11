@@ -28,6 +28,7 @@ import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -123,6 +124,20 @@ public class TestController implements ApplicationContextAware {
     /**
      * post json请求
      */
+    @PostMapping(value = "form", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    Map<String, String> form(@RequestParam("name") String name,
+                            @RequestParam("age") String age) {
+        return Map.of("name", name, "age", age);
+    }
+
+    /**
+     * 没有 '=' 的 flag 参数：required=true 时应拿到空字符串，而不是 400。
+     */
+    @PostMapping(value = "formFlag", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    Map<String, String> formFlag(@RequestParam("flag") String flag) {
+        return Map.of("flag", flag);
+    }
+
     @PostMapping("post")
     Object post(@RequestBody Pojo pojo) {
         log.debug("pojo" + pojo);
@@ -141,6 +156,30 @@ public class TestController implements ApplicationContextAware {
     Object all(HttpServletResponse response) {
         response.addHeader("abc", String.valueOf(System.currentTimeMillis()));
         return "OK";
+    }
+
+    /**
+     * 显式 sendError，用于验证错误状态与消息进入日志。
+     */
+    @GetMapping("sendError")
+    void sendError(HttpServletResponse response) throws IOException {
+        response.sendError(404, "widget not found");
+    }
+
+    /**
+     * 返回没有 charset 的 JSON，验证日志按 UTF-8 解码（Tomcat 默认 encoding 是 ISO-8859-1）。
+     */
+    @GetMapping(value = "jsonNoCharset", produces = MediaType.APPLICATION_JSON_VALUE)
+    Map<String, String> jsonNoCharset() {
+        return Map.of("name", "中文JSON响应");
+    }
+
+    /**
+     * 故意抛异常，用于验证异常路径也会记录日志且状态为 500。
+     */
+    @GetMapping("error")
+    String error() {
+        throw new IllegalStateException("boom-for-test");
     }
 
     /**

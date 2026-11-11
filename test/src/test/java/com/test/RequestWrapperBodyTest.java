@@ -5,12 +5,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.util.StreamUtils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -22,20 +27,23 @@ public class RequestWrapperBodyTest {
     private static final int FOUR_MB = 4 * 1024 * 1024;
 
     /**
-     * 5MB 请求体：源头截断到 4MB，getInputStream() 回放截断后的内容。
+     * 5MB 请求体：业务回放完整 5MB；日志只保留开头 4MB 并带截断标记与真实总长度。
      */
     @Test
-    void largeBody_truncatedAtSource() throws IOException {
+    void largeBody_replayedComplete_logTruncated() throws IOException {
         byte[] body = filled(FOUR_MB + 1024 * 1024, (byte) 'A');
         RequestWrapper wrapper = wrap(body, "application/json");
 
-        // 业务回放 body 被截断到 4MB（源头截断，防 OOM）
+        // 业务回放 body 完整
         byte[] replayed = StreamUtils.copyToByteArray(wrapper.getInputStream());
-        assertEquals(FOUR_MB, replayed.length);
+        assertEquals(body.length, replayed.length);
+        assertArrayEquals(body, replayed);
 
-        // 日志也是截断后的内容
+        // 日志按 4MB 截断，且提示里带真实原始大小
         String log = wrapper.getRequestBodyLogString();
-        assertEquals(FOUR_MB, log.length());
+        assertTrue(log.startsWith("A"));
+        assertTrue(log.contains("[request body truncated, total size = " + body.length + " bytes"));
+        assertTrue(log.length() > FOUR_MB);
     }
 
     /**
@@ -55,12 +63,14 @@ public class RequestWrapperBodyTest {
     }
 
     /**
-     * 边界：4MB + 1 字节，应被截断。
+     * 边界：4MB + 1 字节，日志应被截断，但业务回放仍是 4MB + 1 字节。
      */
     @Test
-    void boundary_fourMbPlusOne_truncated() {
-        RequestWrapper wrapper = wrap(filled(FOUR_MB + 1, (byte) 'C'), "application/json");
+    void boundary_fourMbPlusOne_logTruncated_businessComplete() throws IOException {
+        byte[] body = filled(FOUR_MB + 1, (byte) 'C');
+        RequestWrapper wrapper = wrap(body, "application/json");
         assertTrue(wrapper.getRequestBodyLogString().contains("[request body truncated"));
+        assertEquals(body.length, StreamUtils.copyToByteArray(wrapper.getInputStream()).length);
     }
 
     /**
@@ -91,6 +101,120 @@ public class RequestWrapperBodyTest {
     void emptyBody_returnsEmpty() {
         RequestWrapper wrapper = wrap(new byte[0], "application/json");
         assertEquals("", wrapper.getRequestBodyLogString());
+    }
+
+    /**
+     * form-urlencoded：先缓存原始 body，再解析参数，二者都不能丢。
+     */
+    @Test
+    void formUrlEncoded_rawBodyAndParametersBothAvailable() throws IOException {
+        String body = "name=%E5%BC%A0%E4%B8%89&age=18";
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("POST");
+        request.setContentType("application/x-www-form-urlencoded");
+        request.setContent(body.getBytes(StandardCharsets.US_ASCII));
+
+        RequestWrapper wrapper = new RequestWrapper(request, 0);
+
+        assertEquals(body, new String(StreamUtils.copyToByteArray(wrapper.getInputStream()),
+                StandardCharsets.US_ASCII));
+        assertEquals(body.length(), wrapper.getContentLength());
+        assertEquals("张三", wrapper.getParameter("name"));
+        assertEquals("18", wrapper.getParameter("age"));
+        String log = wrapper.getRequestBodyLogString();
+        assertTrue(log.contains("name=张三"), log);
+        assertTrue(log.contains("age=18"), log);
+    }
+
+    /**
+     * JSON 请求没有 charset、容器又声明 ISO-8859-1 时，请求侧日志和 getReader 都应按 UTF-8 解码。
+     */
+    @Test
+    void jsonBodyWithoutCharset_usesUtf8ForLogAndReader() throws IOException {
+        String json = "{\"name\":\"中文请求\"}";
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("POST");
+        request.setContentType("application/json");
+        request.setCharacterEncoding("ISO-8859-1");
+        request.setContent(json.getBytes(StandardCharsets.UTF_8));
+
+        RequestWrapper wrapper = new RequestWrapper(request, 0);
+        assertEquals(json, wrapper.getRequestBodyLogString());
+
+        String readerText;
+        try (BufferedReader reader = wrapper.getReader()) {
+            readerText = reader.lines().collect(Collectors.joining("\n"));
+        }
+        assertEquals(json, readerText);
+    }
+
+    /**
+     * 业务 reader 保持声明编码：text/plain + ISO-8859-1 时不能因为字节恰好是合法 UTF-8 就改成 UTF-8。
+     * 日志字符串仍使用 UTF-8 启发式。
+     */
+    @Test
+    void textPlainIsoDeclaration_readerKeepsIsoWhileLogUsesUtf8() throws IOException {
+        String text = "中文";
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("POST");
+        request.setContentType("text/plain");
+        request.setCharacterEncoding(StandardCharsets.ISO_8859_1.name());
+        request.setContent(bytes);
+
+        RequestWrapper wrapper = new RequestWrapper(request, 0);
+
+        String readerText;
+        try (BufferedReader reader = wrapper.getReader()) {
+            readerText = reader.lines().collect(Collectors.joining("\n"));
+        }
+        assertEquals(new String(bytes, StandardCharsets.ISO_8859_1), readerText);
+        assertEquals(text, wrapper.getRequestBodyLogString());
+    }
+
+    /**
+     * form body 中没有 '=' 的 flag 参数应按 Servlet 语义返回空串，而不是 null（参数缺失）。
+     */
+    @Test
+    void formFlagWithoutEquals_returnsEmptyString() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("POST");
+        request.setContentType("application/x-www-form-urlencoded");
+        request.setContent("flag&name=%E5%BC%A0%E4%B8%89".getBytes(StandardCharsets.US_ASCII));
+
+        RequestWrapper wrapper = new RequestWrapper(request, 0);
+
+        assertEquals("", wrapper.getParameter("flag"));
+        assertArrayEquals(new String[]{""}, wrapper.getParameterValues("flag"));
+        assertEquals("张三", wrapper.getParameter("name"));
+    }
+
+    /**
+     * query string 先按 & 拆分再解码：值里的 %26 不能被当成参数分隔符。
+     */
+    @Test
+    void queryStringMap_decodesBeforeSplitting() {
+        Map<String, String[]> map = RequestWrapper.getQueryStringMap("a=%26b&c=1&c=2&flag");
+        assertNotNull(map.get("a"));
+        assertEquals("&b", map.get("a")[0]);
+        assertArrayEquals(new String[]{"1", "2"}, map.get("c"));
+        assertArrayEquals(new String[]{""}, map.get("flag"));
+    }
+
+    /**
+     * 包装时不能原地修改容器持有的参数数组，否则业务侧会拿到被重新编码后的值。
+     */
+    @Test
+    void parameterMap_doesNotMutateOriginalArray() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setParameter("p", "中文");
+        String[] original = request.getParameterMap().get("p");
+        assertSame(original, request.getParameterMap().get("p"));
+
+        RequestWrapper wrapper = new RequestWrapper(request, 0);
+
+        assertEquals("中文", original[0]);
+        assertTrue(wrapper.getParameter("p") != null);
     }
 
     private static RequestWrapper wrap(byte[] content, String contentType) {

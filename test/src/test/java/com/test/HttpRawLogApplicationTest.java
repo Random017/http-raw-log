@@ -111,10 +111,15 @@ public class HttpRawLogApplicationTest {
                 .andDo(print());
     }
 
+    /**
+     * 未携带文件时，下载接口返回 text/plain 的提示信息。
+     */
     @Test
-    public void downloadTests() throws Exception {
+    public void downloadWithoutFile_returnsTextMessage() throws Exception {
         mockMvc.perform(get("/test/download/234"))
-                .andExpect(content().contentType(MediaType.APPLICATION_OCTET_STREAM))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+                .andExpect(content().string(StringContains.containsString("未提供文件")))
                 .andDo(print());
     }
 

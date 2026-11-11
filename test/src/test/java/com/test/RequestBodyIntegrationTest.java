@@ -24,12 +24,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * RequestWrapper 截断行为的集成测试：走真实的 HttpRawLogFilter + HistoryApi 全链路。
+ * 请求体大小限制的集成测试：走真实的 HttpRawLogFilter + HistoryApi 全链路。
  *
- * <p>验证两条核心契约：
+ * <p>验证核心契约：
  * <ol>
- *   <li>业务侧（Controller）收到的请求体始终完整，不受 4MB 日志上限影响；</li>
- *   <li>记录的日志 requestBody 超过 4MB 时被截断并附标记，小 body 则完整记录。</li>
+ *   <li>超过 {@code maxRequestBodyBytes}（默认 64KB）的请求不再被包装，业务侧仍然收到完整 body；</li>
+ *   <li>日志只写一行 skipped 标记，包含 content-length 与上限，避免 2GB Content-Length 触发 OOM；</li>
+ *   <li>小 body 继续完整记录。</li>
  * </ol>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -38,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 public class RequestBodyIntegrationTest {
 
-    private static final int FOUR_MB = 4 * 1024 * 1024;
+    private static final int SIXTY_FOUR_KB = 64 * 1024;
     private static final int FIVE_MB = 5 * 1024 * 1024;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -47,10 +48,10 @@ public class RequestBodyIntegrationTest {
     MockMvc mockMvc;
 
     /**
-     * 大请求体（5MB）：源头截断到 4MB，业务侧和日志侧均拿到截断后的内容。
+     * 大请求体（5MB）：业务侧完整拿到 5MB；日志侧不缓存 body，只记录 skipped 标记。
      */
     @Test
-    void largeBody_businessAndLogTruncated() throws Exception {
+    void largeBody_businessComplete_logSkipped() throws Exception {
         String body = repeat('A', FIVE_MB);
         byte[] content = body.getBytes(StandardCharsets.US_ASCII);
 
@@ -60,19 +61,40 @@ public class RequestBodyIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        // 1) 业务侧拿到的 body 被截断到 4MB（源头截断，防 OOM）
-        assertEquals(FOUR_MB, com.skycong.httprawlog2.EchoTestController.lastReceivedBody.length());
+        // 1) 业务侧拿到完整 5MB
+        assertEquals(FIVE_MB, com.skycong.httprawlog2.EchoTestController.lastReceivedBody.length());
 
-        // 2) 记录的日志 requestBody 也是截断后的内容
+        // 2) 日志侧只记录跳过原因，不再把 5MB 读进内存
         String hLogId = result.getResponse().getHeader("hLogId");
         assertNotNull(hLogId);
         String requestBody = requestBodyOf(hLogId);
         assertNotNull(requestBody);
-        assertEquals(FOUR_MB, requestBody.length());
+        assertTrue(requestBody.startsWith("[request body skipped: content-length=" + FIVE_MB),
+                "unexpected request body log: " + requestBody);
+        assertTrue(requestBody.contains("maxRequestBodyBytes=" + SIXTY_FOUR_KB));
     }
 
     /**
-     * 小请求体（1KB）：业务侧完整收到，日志 requestBody 也完整、无截断标记。
+     * 声明的 Content-Length 为 2GB 但实际没有 body：filter 不能按声明长度分配数组。
+     */
+    @Test
+    void hugeDeclaredContentLength_doesNotAllocate() throws Exception {
+        int declared = Integer.MAX_VALUE;
+        MvcResult result = mockMvc.perform(post("/test/echoBytes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Content-Length", Integer.toString(declared))
+                        .content(new byte[0]))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String requestBody = requestBodyOf(result.getResponse().getHeader("hLogId"));
+        assertNotNull(requestBody);
+        assertTrue(requestBody.contains("content-length=" + declared), "unexpected request body log: " + requestBody);
+        assertTrue(requestBody.contains("maxRequestBodyBytes=" + SIXTY_FOUR_KB));
+    }
+
+    /**
+     * 小请求体（1KB）：业务侧完整收到，日志 requestBody 也完整、无截断/跳过标记。
      */
     @Test
     void smallBody_fullLoggedAndBusinessComplete() throws Exception {
@@ -89,6 +111,7 @@ public class RequestBodyIntegrationTest {
 
         String hLogId = result.getResponse().getHeader("hLogId");
         String requestBody = requestBodyOf(hLogId);
+        assertFalse(requestBody.contains("request body skipped"), "小 body 不应被跳过");
         assertFalse(requestBody.contains("request body truncated"), "小 body 不应被截断");
         assertEquals(body, requestBody);
     }

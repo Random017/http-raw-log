@@ -1,13 +1,14 @@
 package com.skycong.httprawlog.api;
 
 import com.skycong.httprawlog.filter.HttpRawLogFilter;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.stream.Collectors;
 
 /**
  * @author ruanmingcong
@@ -17,10 +18,55 @@ import java.util.stream.Collectors;
 public class HistoryApi implements HistoryRecord {
 
     /**
-     * 内存缓存
+     * 写入 history 的单个 body/query 最大字节数（存储层限额）
      */
-    public static final ConcurrentLinkedDeque<History> HISTORIES = new ConcurrentLinkedDeque<>();
+    private final int maxBodyBytes;
 
+    /**
+     * response body 控制台最大字符长度
+     */
+    private final int maxChars;
+
+    /**
+     * 内存存储（实例状态，由 Spring 管理生命周期）
+     */
+    private final HistoryStore historyStore;
+
+    /**
+     * 控制台是否输出 ANSI 颜色（重定向到文件/非 TTY 时可关闭）
+     */
+    private final boolean consoleColors;
+
+    /**
+     * 保留无参构造，便于测试/手工实例化；等价于“不存储历史”
+     */
+    public HistoryApi() {
+        this(HistoryStore.disabled(), 203, 32 * 1024, true);
+    }
+
+    /**
+     * 兼容旧构造方式：内部创建一个独立 store
+     */
+    public HistoryApi(int maxHistory, int maxChars) {
+        this(new HistoryStore(maxHistory, 4 * 1024 * 1024L), maxChars, 32 * 1024, true);
+    }
+
+    public HistoryApi(HistoryStore historyStore, int maxChars) {
+        this(historyStore, maxChars, 32 * 1024, true);
+    }
+
+    public HistoryApi(HistoryStore historyStore, int maxChars, int maxBodyBytes) {
+        this(historyStore, maxChars, maxBodyBytes, true);
+    }
+
+    public HistoryApi(HistoryStore historyStore, int maxChars, int maxBodyBytes, boolean consoleColors) {
+        this.historyStore = historyStore == null ? HistoryStore.disabled() : historyStore;
+        this.maxChars = maxChars;
+        this.maxBodyBytes = maxBodyBytes > 0 ? maxBodyBytes : 32 * 1024;
+        this.consoleColors = consoleColors;
+        HttpRawLogFilter.LOGGER.debug("init default History API complete maxHistory = {}, maxChars = {}, maxBodyBytes = {}, consoleColors = {}.",
+                this.historyStore.getMaxHistory(), maxChars, this.maxBodyBytes, consoleColors);
+    }
 
     /**
      * 历史接口
@@ -33,32 +79,26 @@ public class HistoryApi implements HistoryRecord {
                                  @RequestParam(value = "page", required = false, defaultValue = "1") int page) {
         // 优先logId 检索
         if (hLogId != null && !hLogId.isEmpty()) {
-            return HISTORIES.stream().filter(f -> f.gethLogId().equals(hLogId)).collect(Collectors.toList());
+            return historyStore.findByLogId(hLogId);
         }
-        // 分页
+        // 分页：最多 20 页，每页 50 条
         page = Math.max(1, Math.min(page, 20));
-        int size = HISTORIES.size();
-        int skip = Math.min((page - 1) * 50, size);
-        int limit = Math.min(50, size - skip);
-        return HISTORIES.stream().skip(skip).limit(limit).collect(Collectors.toList());
+        return historyStore.page(page, 50);
     }
 
     /**
-     * 最大历史记录
+     * 按 hLogId 取单条详情；列表只返回摘要，详情再按需读取。
+     *
+     * @param hLogId 响应头里的 hLogId
+     * @return 单条历史；不存在返回 404
      */
-    private int maxHistory;
-    /**
-     * response body 最大字符长度
-     */
-    private int maxChars;
-
-    public HistoryApi() {
-    }
-
-    public HistoryApi(int maxHistory, int maxChars) {
-        this.maxHistory = maxHistory;
-        this.maxChars = maxChars;
-        HttpRawLogFilter.LOGGER.debug("init default History API complete maxHistory = {}, maxChars = {}.", maxHistory, maxChars);
+    @GetMapping("httpRawLog/history/{hLogId}")
+    public ResponseEntity<History> historyDetail(@PathVariable("hLogId") String hLogId) {
+        List<History> histories = historyStore.findByLogId(hLogId);
+        if (histories.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(histories.get(0));
     }
 
     /**
@@ -66,17 +106,19 @@ public class HistoryApi implements HistoryRecord {
      */
     @Override
     public void record(History history) {
-        // 先打印到
+        if (history == null) {
+            return;
+        }
+        // 存储层单独限额：控制台与内存历史都不再保存超大 body
+        history.setQueryString(truncate(history.getQueryString(), maxBodyBytes));
+        history.setRequestBody(truncate(history.getRequestBody(), maxBodyBytes));
+        history.setResponseBody(truncate(history.getResponseBody(), maxBodyBytes));
+
+        // 先打印到控制台
         consoleLog(history);
 
-        // 记录请求日志到内存中
-        if (maxHistory > 0) {
-            // 添加到头, 时间最新的在前面
-            HISTORIES.addFirst(history);
-            while (HISTORIES.size() > maxHistory) {
-                HISTORIES.removeLast();
-            }
-        }
+        // 记录请求日志到内存中（容量/字节数用尽时由 store 丢弃最旧记录）
+        historyStore.add(history);
     }
 
 
@@ -84,50 +126,80 @@ public class HistoryApi implements HistoryRecord {
     public void consoleLog(History history) {
         StringBuilder sb = new StringBuilder();
         sb.append('\n')
-                .append("--------------> http raw data ").append(logf1("hLogId:")).append(history.gethLogId()).append("  ").append(history.getCost()).append(" ms").append('\n')
-                .append(logf2("[url]")).append(":").append(history.getMethod()).append('\t').append(history.getUrl()).append('\n')
-                .append(logf2("[request headers]")).append(":").append(history.getRequestHeaders()).append('\n');
-        if (!history.getQueryString().isEmpty()) {
-            sb.append(logf2("[query string]")).append(":").append(history.getQueryString()).append('\n');
+                .append("--------------> http raw data ").append(color1("hLogId:")).append(history.gethLogId()).append("  ").append(history.getCost()).append(" ms").append('\n')
+                .append(color2("[url]")).append(":").append(history.getMethod()).append('\t').append(history.getUrl()).append('\n')
+                .append(color2("[request headers]")).append(":").append(history.getRequestHeaders()).append('\n');
+        if (notEmpty(history.getQueryString())) {
+            sb.append(color2("[query string]")).append(":").append(history.getQueryString()).append('\n');
         }
-        if (!history.getRequestBody().isEmpty()) {
-            sb.append(logf2("[request body]")).append(":").append(history.getRequestBody()).append('\n');
+        if (notEmpty(history.getRequestBody())) {
+            sb.append(color2("[request body]")).append(":").append(history.getRequestBody()).append('\n');
         }
-        sb.append(logf3("[response headers]")).append(":status=").append(history.getResponseStatus()).append(", ").append(history.getResponseHeaders()).append('\n');
-        if (!history.getResponseBody().isEmpty()) {
-            sb.append(logf3("[response body]")).append(":").append(preComputedTruncate(history.getResponseBody(), maxChars));
+        sb.append(color3("[response headers]")).append(":status=").append(history.getResponseStatus()).append(", ").append(history.getResponseHeaders()).append('\n');
+        if (notEmpty(history.getResponseBody())) {
+            sb.append(color3("[response body]")).append(":").append(preComputedTruncate(history.getResponseBody(), maxChars));
         }
         HttpRawLogFilter.LOGGER.debug(sb.toString());
     }
 
+    private static boolean notEmpty(String value) {
+        return value != null && !value.isEmpty();
+    }
+
     /**
-     * 预计算长度的截断（避免重复计算）
+     * 按 UTF-8 字节数截断，避免把多字节字符切成乱码。
+     *
+     * @param text         原文
+     * @param maxBodyBytes 最大字节数；&lt;=0 表示不截断
+     * @return 截断后的文本（带总大小标记）
      */
-    public static String preComputedTruncate(String text, int maxChars) {
-        if (text == null) return null;
-
-        final int textLength = text.length();
-        final int ellipsisLength = 3; // "...".length()
-
-        if (textLength <= maxChars || maxChars <= ellipsisLength) {
+    public static String truncate(String text, int maxBodyBytes) {
+        if (text == null || maxBodyBytes <= 0) {
             return text;
         }
-        return text.substring(0, maxChars - ellipsisLength) + "...";
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length <= maxBodyBytes) {
+            return text;
+        }
+        int end = maxBodyBytes;
+        while (end > 0 && (bytes[end] & 0xC0) == 0x80) {
+            end--;
+        }
+        return new String(bytes, 0, end, StandardCharsets.UTF_8)
+                + "\n... [truncated, total size = " + bytes.length
+                + " bytes > maxBodyBytes=" + maxBodyBytes + "]";
     }
 
-    // 彩色日志
-    static String logf1(String log) {
-        // 青色
-        return "\u001B[36m" + log + "\u001B[0m";
+    /**
+     * 预计算长度的截断（避免重复计算）。
+     *
+     * @param text     原文
+     * @param maxChars 最大字符数；&lt;=0 表示不截断
+     * @return 截断后的文本
+     */
+    public static String preComputedTruncate(String text, int maxChars) {
+        if (text == null || maxChars <= 0) return text;
+
+        final int textLength = text.length();
+        if (textLength <= maxChars) {
+            return text;
+        }
+        if (maxChars <= 3) {
+            return text.substring(0, maxChars);
+        }
+        return text.substring(0, maxChars - 3) + "...";
     }
 
-    static String logf2(String log) {
-        // 绿色
-        return "\u001B[32m" + log + "\u001B[0m";
+    // 彩色日志（可通过 com.skycong.http-raw.log.console.colors=false 关闭）
+    private String color1(String log) {
+        return consoleColors ? "\u001B[36m" + log + "\u001B[0m" : log;
     }
 
-    static String logf3(String log) {
-        // 蓝色
-        return "\u001B[34m" + log + "\u001B[0m";
+    private String color2(String log) {
+        return consoleColors ? "\u001B[32m" + log + "\u001B[0m" : log;
+    }
+
+    private String color3(String log) {
+        return consoleColors ? "\u001B[34m" + log + "\u001B[0m" : log;
     }
 }

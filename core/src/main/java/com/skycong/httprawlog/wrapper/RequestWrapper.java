@@ -2,6 +2,7 @@ package com.skycong.httprawlog.wrapper;
 
 import com.skycong.httprawlog.Constant;
 import com.skycong.httprawlog.filter.HttpRawLogFilter;
+import com.skycong.httprawlog.util.CharsetSupport;
 
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
@@ -10,26 +11,53 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 缓存 request 中的 inputStream， 由于inputStream只能读取一次就会终止，需要将其包装成一个可重复读取的 inputStream
  * 重写一些方法，使得log 更友好
  * 重写一些方法，处理 query string，x-www-form-urlencoded 请求时字符编解码问题
  *
+ * <p>请求体完整缓存并完整回放给业务；只有日志字符串会按 {@link #MAX_LOG_BODY_SIZE} 截断。
+ *
  * @author ruanmingcong
  * @since 2022/8/11 15:47
  */
 public class RequestWrapper extends HttpServletRequestWrapper {
+
+    /**
+     * 日志字符串中请求体的最大字节数，默认 4MB。业务侧拿到的请求体不受此限制。
+     */
+    private static final int MAX_LOG_BODY_SIZE = 4 * 1024 * 1024;
+
+    /**
+     * Content-Length 未知时的初始容量，8KB
+     */
+    private static final int INITIAL_BUFFER_SIZE = 8 * 1024;
+
+    /**
+     * 请求体（完整内容，用于回放给业务）
+     */
+    private final byte[] bytes;
+
+    /**
+     * ParameterMap
+     */
+    private final Map<String, String[]> map;
 
     /**
      * Constructs a request object wrapping the given request.
@@ -39,90 +67,145 @@ public class RequestWrapper extends HttpServletRequestWrapper {
      */
     public RequestWrapper(HttpServletRequest request, int formDataEncodeFlag) {
         super(request);
-        // 必须先读取 ParameterMap ，后读取 request.getInputStream() link：https://www.jianshu.com/p/0586e757e0af
-        map = packageParameterMapAll(super.getParameterMap(), getQueryStringMap(super.getQueryString()), isParameterEncode(formDataEncodeFlag));
+        // 必须先读取 body，再解析参数：真实容器下 getParameterMap() 会把 form body 消费掉
+        bytes = readRequestBody(request);
+        String contentType = request.getContentType();
+        Map<String, String[]> originParameterMap;
+        boolean parameterEncode;
+        if (isFormUrlEncoded(contentType) && bytes.length > 0) {
+            // form body 已由本类按原始字节解析，值已是最终字符串，不能再按容器默认编码二次转换
+            originParameterMap = parseFormUrlEncoded(bytes, contentType, super.getCharacterEncoding());
+            parameterEncode = false;
+        } else {
+            originParameterMap = super.getParameterMap();
+            parameterEncode = isParameterEncode(formDataEncodeFlag);
+        }
+        map = packageParameterMapAll(originParameterMap, getQueryStringMap(super.getQueryString()), parameterEncode);
+    }
+
+    /**
+     * 判断是否为 application/x-www-form-urlencoded。
+     */
+    private static boolean isFormUrlEncoded(String contentType) {
+        return contentType != null && mediaType(contentType).equals(Constant.FORM_URLENCODED);
+    }
+
+    /**
+     * 从已经缓存的原始字节解析 form-urlencoded 参数。
+     *
+     * <p>不能依赖容器的 getParameterMap()：它通常已经消费了 body，之后再读 inputStream 只会得到空内容。
+     */
+    private static Map<String, String[]> parseFormUrlEncoded(byte[] body, String contentType, String declaredEncoding) {
+        Charset charset = formCharset(contentType, declaredEncoding);
+        String text = new String(body, charset);
+        Map<String, String[]> result = new LinkedHashMap<>();
+        for (String pair : text.split(Constant.AMPERSAND, -1)) {
+            if (pair.isEmpty()) {
+                continue;
+            }
+            int eq = pair.indexOf('=');
+            String rawKey = eq >= 0 ? pair.substring(0, eq) : pair;
+            String key = decodeFormComponent(rawKey, charset);
+            if (key.isEmpty()) {
+                continue;
+            }
+            if (eq < 0) {
+                // Servlet 容器对没有 '=' 的参数返回空字符串，而不是“参数缺失”
+                result.putIfAbsent(key, new String[]{""});
+                continue;
+            }
+            String value = decodeFormComponent(pair.substring(eq + 1), charset);
+            String[] values = result.get(key);
+            if (values == null) {
+                values = new String[]{value};
+            } else {
+                values = Arrays.copyOf(values, values.length + 1);
+                values[values.length - 1] = value;
+            }
+            result.put(key, values);
+        }
+        return result;
+    }
+
+    /**
+     * form-urlencoded 的默认编码按 UTF-8 处理；显式 charset 或非默认的容器编码优先。
+     */
+    private static Charset formCharset(String contentType, String declaredEncoding) {
+        Charset explicit = CharsetSupport.charsetFromContentType(contentType);
+        if (explicit != null) {
+            return explicit;
+        }
+        Charset declared = charsetOrNull(declaredEncoding);
+        if (declared != null
+                && !StandardCharsets.ISO_8859_1.equals(declared)
+                && !StandardCharsets.US_ASCII.equals(declared)) {
+            return declared;
+        }
+        return StandardCharsets.UTF_8;
+    }
+
+    private static Charset charsetOrNull(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return null;
+        }
         try {
-            byte[] result = readRequestBody(request);
-            bytes = result;
-        } catch (IOException e) {
-            HttpRawLogFilter.LOGGER.error("读取request body失败", e);
-            bytes = new byte[0];
+            return Charset.forName(name.trim());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String decodeFormComponent(String value, Charset charset) {
+        try {
+            return URLDecoder.decode(value, charset);
+        } catch (IllegalArgumentException e) {
+            HttpRawLogFilter.LOGGER.warn("form-urlencoded 参数解码失败，保留原始值: {}", value);
+            return value;
         }
     }
 
     /**
-     * 读取 request body，优先用 Content-Length 精确分配 buffer，超限时截断。
-     * 读取完成后通过 requestBodyTruncated 标记是否发生了截断。
+     * 完整读取请求体。
+     *
+     * <p>业务侧收到的请求体必须完整，因此这里不做大小截断；日志侧由 {@link #getRequestBodyLogString()} 截断。
      *
      * @param request HTTP 请求
-     * @return 缓存的 body 字节数组
+     * @return 完整的请求体字节数组
      */
-    private byte[] readRequestBody(HttpServletRequest request) throws IOException {
-        int contentLength = request.getContentLength();
-        java.io.InputStream is = request.getInputStream();
-
-        if (contentLength > 0 && contentLength <= MAX_REQUEST_BODY_SIZE) {
-            // Content-Length 已知且未超限：精确分配，一次读完
-            byte[] buf = new byte[contentLength];
-            int offset = 0;
-            while (offset < contentLength) {
-                int read = is.read(buf, offset, contentLength - offset);
-                if (read == -1) break;
-                offset += read;
-            }
-            requestBodyTruncated = false;
-            return buf;
-        }
-
-        // Content-Length 未知(-1)或超限：分级扩容读取，上限 4MB
-        byte[] buf = new byte[INITIAL_BUFFER_SIZE];
-        int pos = 0;
-        int len;
-        while ((len = is.read(buf, pos, buf.length - pos)) != -1) {
-            pos += len;
-            if (pos >= MAX_REQUEST_BODY_SIZE) {
-                // 读满上限，尝试读完剩余数据（丢弃），然后标记截断
-                byte[] discard = new byte[8192];
-                while (is.read(discard) != -1) {
-                    // 丢弃剩余数据
+    private byte[] readRequestBody(HttpServletRequest request) {
+        try {
+            InputStream is = request.getInputStream();
+            int contentLength = request.getContentLength();
+            if (contentLength >= 0) {
+                // Content-Length 已知：精确分配，一次读完
+                byte[] buf = new byte[contentLength];
+                int offset = 0;
+                while (offset < contentLength) {
+                    int read = is.read(buf, offset, contentLength - offset);
+                    if (read == -1) {
+                        break;
+                    }
+                    offset += read;
                 }
-                requestBodyTruncated = true;
-                return Arrays.copyOf(buf, MAX_REQUEST_BODY_SIZE);
+                return offset == contentLength ? buf : Arrays.copyOf(buf, offset);
             }
-            if (pos == buf.length) {
-                int newCap = Math.min(buf.length * 2, MAX_REQUEST_BODY_SIZE);
-                buf = Arrays.copyOf(buf, newCap);
+
+            // Content-Length 未知(-1)：按需扩容，直到读完
+            byte[] buf = new byte[INITIAL_BUFFER_SIZE];
+            int pos = 0;
+            int len;
+            while ((len = is.read(buf, pos, buf.length - pos)) != -1) {
+                pos += len;
+                if (pos == buf.length) {
+                    buf = Arrays.copyOf(buf, buf.length * 2);
+                }
             }
+            return Arrays.copyOf(buf, pos);
+        } catch (IOException e) {
+            HttpRawLogFilter.LOGGER.error("读取request body失败", e);
+            return new byte[0];
         }
-        requestBodyTruncated = false;
-        return Arrays.copyOf(buf, pos);
     }
-
-    /**
-     * 请求体最大缓存大小（字节），默认 4MB。
-     * 超出部分丢弃，业务侧和日志侧均只拿到截断后的内容。
-     */
-    private static final int MAX_REQUEST_BODY_SIZE = 4 * 1024 * 1024;
-
-    /**
-     * 分级扩容初始容量 8KB
-     */
-    private static final int INITIAL_BUFFER_SIZE = 8 * 1024;
-
-    /**
-     * 请求体
-     */
-    private byte[] bytes;
-
-    /**
-     * 请求体是否因超过 {@link #MAX_REQUEST_BODY_SIZE} 而被截断（仅记录前 {@link #MAX_REQUEST_BODY_SIZE} 字节）
-     */
-    private boolean requestBodyTruncated = false;
-
-    /**
-     * ParameterMap
-     */
-    private final Map<String, String[]> map;
 
     @Override
     public ServletInputStream getInputStream() {
@@ -146,19 +229,38 @@ public class RequestWrapper extends HttpServletRequestWrapper {
             public int read() {
                 return byteArrayInputStream.read();
             }
+
+            @Override
+            public int read(byte[] b, int off, int len) {
+                return byteArrayInputStream.read(b, off, len);
+            }
+
+            @Override
+            public long skip(long n) {
+                return byteArrayInputStream.skip(n);
+            }
+
+            @Override
+            public int available() {
+                return byteArrayInputStream.available();
+            }
         };
     }
 
+    /**
+     * 业务侧 reader 保持声明编码（JSON/XML 缺省 UTF-8，其余按容器声明，未声明按 Servlet 默认）。
+     * 只有日志字符串使用 {@link CharsetSupport#resolve} 的 UTF-8 启发式，避免日志组件改变业务读取语义。
+     */
     @Override
     public BufferedReader getReader() {
-        return new BufferedReader(new InputStreamReader(getInputStream()));
+        return new BufferedReader(new InputStreamReader(getInputStream(),
+                CharsetSupport.resolveForReader(super.getContentType(), super.getCharacterEncoding())));
     }
 
     @Override
     public Map<String, String[]> getParameterMap() {
         return map;
     }
-
 
     @Override
     public String getParameter(String name) {
@@ -174,6 +276,19 @@ public class RequestWrapper extends HttpServletRequestWrapper {
     @Override
     public String[] getParameterValues(String name) {
         return map.get(name);
+    }
+
+    /**
+     * 请求体回放后长度与实际一致，避免使用方按原始 Content-Length 读取时卡住或读不全。
+     */
+    @Override
+    public int getContentLength() {
+        return bytes.length;
+    }
+
+    @Override
+    public long getContentLengthLong() {
+        return bytes.length;
     }
 
     /**
@@ -194,74 +309,97 @@ public class RequestWrapper extends HttpServletRequestWrapper {
     }
 
     /**
-     * 获取request body log string
+     * 获取 request body log string（最多 {@link #MAX_LOG_BODY_SIZE} 字节，超出部分截断并标记）
      */
     public String getRequestBodyLogString() {
-        // 仅取前 MAX_REQUEST_BODY_SIZE 字节组装日志字符串，避免大 body 导致日志字符串 OOM（业务回放的 body 仍完整）
-        int logLen = Math.min(bytes.length, MAX_REQUEST_BODY_SIZE);
-        String requestBodyOriginString = "";
+        int logLen = Math.min(bytes.length, MAX_LOG_BODY_SIZE);
+        String requestBodyOriginString;
         try {
-            requestBodyOriginString = new String(bytes, 0, logLen, StandardCharsets.UTF_8);
+            requestBodyOriginString = new String(bytes, 0, logLen,
+                    CharsetSupport.resolve(getContentType(), super.getCharacterEncoding(), bytes, logLen));
         } catch (Exception e) {
             HttpRawLogFilter.LOGGER.error("读取request body日志字符串失败", e);
+            return "";
         }
-        if (requestBodyOriginString.isEmpty()) return requestBodyOriginString;
-        String contentType = this.getContentType();
-        if (contentType == null || contentType.isEmpty())
+        if (requestBodyOriginString.isEmpty()) {
             return requestBodyOriginString;
+        }
+        String contentType = this.getContentType();
+        if (contentType == null || contentType.isEmpty()) {
+            return appendTruncatedSuffix(requestBodyOriginString);
+        }
+        String mediaType = mediaType(contentType);
         String result;
-        if (contentType.equalsIgnoreCase(Constant.FORM_URLENCODED)) {
+        if (mediaType.equals(Constant.FORM_URLENCODED)) {
+            Charset charset = formCharset(contentType, super.getCharacterEncoding());
             try {
-                String decode = URLDecoder.decode(requestBodyOriginString, Constant.UTF8);
+                String decode = URLDecoder.decode(requestBodyOriginString, charset);
                 // log 换行，方便查看
                 result = decode.replace(Constant.AMPERSAND, Constant.LINE);
-            } catch (UnsupportedEncodingException e) {
-                HttpRawLogFilter.LOGGER.error("URL解码失败", e);
+            } catch (IllegalArgumentException e) {
+                // 日志被上限截断时可能留下不完整的 %xx，保留原始 body 即可，不影响业务
+                HttpRawLogFilter.LOGGER.warn("form-urlencoded 日志解码失败，保留原始 body: {}", e.toString());
                 result = requestBodyOriginString;
             }
-        } else if (contentType.toLowerCase().startsWith(Constant.FORM_DATA)) {
-            String[] split = contentType.split(Constant.SEMICOLON);
-            if (split.length != 2) {
-                result = contentType + "request body cannot resolve，it not contain like this ‘boundary=--------------------------028952705751347888065070’ , size = " + requestBodyOriginString.getBytes().length;
-            } else {
-                String boundary = split[1];
-                int i = boundary.indexOf("=");
-                if (i < 0) {
-                    result = contentType + "request body cannot resolve，it not contain like this ‘boundary=--------------------------028952705751347888065070’ , size = " + requestBodyOriginString.getBytes().length;
-                } else {
-                    boundary = boundary.substring(i + 1);
-                    if (boundary.isEmpty()) {
-                        result = contentType + "request body cannot resolve，boundary is empty, size = " + requestBodyOriginString.getBytes().length;
-                    } else {
-                        String[] formData = requestBodyOriginString.split(boundary);
-                        StringBuilder formDataString = new StringBuilder();
-                        for (String formDatum : formData) {
-                            // 检查是否包含文件
-                            if (formDatum.contains("Content-Type:") && formDatum.contains("filename=")) {
-                                int j1 = formDatum.indexOf("Content-Type:");
-                                int ln = formDatum.indexOf("\n", j1 + 1);
-                                String head = formDatum.substring(0, ln - 1);
-                                // 文件大小估计值
-                                int fileLength = formDatum.substring(ln).getBytes(StandardCharsets.ISO_8859_1).length;
-                                String s = head + "\tfile size = " + fileLength + "\n--";
-                                formDataString.append(s);
-                            } else {
-                                formDataString.append(formDatum);
-                            }
-                        }
-                        result = formDataString.toString();
-                    }
-                }
-            }
+        } else if (mediaType.equals(Constant.FORM_DATA)) {
+            result = formatMultipart(requestBodyOriginString, contentType);
         } else {
             //例如：application/json, application/xml, text/plain 等等，直接返回
             result = requestBodyOriginString;
         }
-        if (requestBodyTruncated) {
-            result = result + "\n... [request body truncated, total size = " + bytes.length
-                    + " bytes > " + MAX_REQUEST_BODY_SIZE + ", only first " + MAX_REQUEST_BODY_SIZE + " bytes logged]";
+        return appendTruncatedSuffix(result);
+    }
+
+    private String appendTruncatedSuffix(String result) {
+        if (bytes.length <= MAX_LOG_BODY_SIZE) {
+            return result;
         }
-        return result;
+        return result + "\n... [request body truncated, total size = " + bytes.length
+                + " bytes > " + MAX_LOG_BODY_SIZE + ", only first " + MAX_LOG_BODY_SIZE + " bytes logged]";
+    }
+
+    /**
+     * 格式化 multipart 请求体：文件字段只打印大小，避免把文件字节流写入日志。
+     */
+    private String formatMultipart(String requestBody, String contentType) {
+        int boundaryIndex = contentType.toLowerCase(Locale.ROOT).indexOf("boundary=");
+        if (boundaryIndex < 0) {
+            return contentType + " request body cannot resolve, it does not contain boundary, size = " + requestBody.length();
+        }
+        String boundary = contentType.substring(boundaryIndex + "boundary=".length()).trim();
+        if (boundary.isEmpty()) {
+            return contentType + " request body cannot resolve, boundary is empty, size = " + requestBody.length();
+        }
+        String[] formData = requestBody.split(Pattern.quote(boundary));
+        StringBuilder formDataString = new StringBuilder();
+        for (String formDatum : formData) {
+            // 检查是否包含文件
+            int contentTypeIndex = formDatum.indexOf("Content-Type:");
+            int filenameIndex = formDatum.indexOf("filename=");
+            if (contentTypeIndex >= 0 && filenameIndex >= 0) {
+                int headerEnd = formDatum.indexOf('\n', contentTypeIndex);
+                if (headerEnd < 0) {
+                    headerEnd = formDatum.length();
+                }
+                String head = formDatum.substring(0, headerEnd).trim();
+                int bodyStart = Math.min(formDatum.length(), headerEnd + 1);
+                // 文件大小估计值
+                int fileLength = formDatum.substring(bodyStart).getBytes(StandardCharsets.ISO_8859_1).length;
+                formDataString.append(head).append("\tfile size = ").append(fileLength).append("\n--");
+            } else {
+                formDataString.append(formDatum);
+            }
+        }
+        return formDataString.toString();
+    }
+
+    /**
+     * 取 Content-Type 的 media type 部分（去掉 charset 等参数），小写。
+     */
+    private static String mediaType(String contentType) {
+        int index = contentType.indexOf(';');
+        String type = index >= 0 ? contentType.substring(0, index) : contentType;
+        return type.trim().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -276,65 +414,81 @@ public class RequestWrapper extends HttpServletRequestWrapper {
         // 参数map包含form-data参数和query string 参数
         // form-data依据 getCharacterEncoding 来判断是否需要重新使用utf-8编码，query string 使用URLDecode
         Map<String, String[]> newMap = new HashMap<>();
-        for (Map.Entry<String, String[]> entry : originParameterMap.entrySet()) {
-            String[] values = entry.getValue();
-            // form-data 默认使用的是 ISO_8859_1 编码，需要重新编码，如果content-type 中指定字符类型，例如：application/x-www-form-urlencoded;charset=utf-8，则使用utf-8编码
-            if (parameterEncode) {
-                for (int i = 0; i < values.length; i++) {
-                    values[i] = new String(values[i].getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+        if (originParameterMap != null) {
+            for (Map.Entry<String, String[]> entry : originParameterMap.entrySet()) {
+                String[] values = entry.getValue();
+                if (values == null) {
+                    newMap.put(entry.getKey(), null);
+                    continue;
                 }
+                // 复制数组，避免原地修改容器持有的参数数组（否则业务侧会拿到被库重新编码后的值）
+                String[] copied = new String[values.length];
+                for (int i = 0; i < values.length; i++) {
+                    String value = values[i];
+                    if (parameterEncode && value != null) {
+                        // form-data 默认使用的是 ISO_8859_1 编码，需要重新编码
+                        value = new String(value.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                    }
+                    copied[i] = value;
+                }
+                newMap.put(entry.getKey(), copied);
             }
-            newMap.put(entry.getKey(), values);
         }
         // 原始表单参数，包含query string 的参数，但是query string 使用的是 URLEncode，如果直接使用 ISO_8859_1 to UTF-8 的话会造成乱码
         // 将 query string map 的值重新put
-        newMap.putAll(queryStringMap);
+        if (queryStringMap != null) {
+            newMap.putAll(queryStringMap);
+        }
         return newMap;
     }
 
     /**
      * 获取query string，解码后并将其封装成 map，多个相同的query string key在map的值数组里
      *
+     * <p>先按 '&amp;' 拆分，再对 key/value 分别解码，避免值中的 %26 被错误拆分。
+     *
      * @param originQueryString 原始query string
-     * @return Map<String, String [ ]>
+     * @return Map&lt;String, String[]&gt;
      */
     public static Map<String, String[]> getQueryStringMap(String originQueryString) {
-        String queryString = originQueryString;
-        Map<String, String[]> map = new HashMap<>();
-        if (queryString == null || queryString.isEmpty()) return map;
-        try {
-            // query string 使用URL encode，需要解码
-            queryString = URLDecoder.decode(queryString, Constant.UTF8);
-        } catch (UnsupportedEncodingException e) {
-            HttpRawLogFilter.LOGGER.error("Query string URL解码失败", e);
+        Map<String, String[]> map = new LinkedHashMap<>();
+        if (originQueryString == null || originQueryString.isEmpty()) {
+            return map;
         }
-        String[] kvs = queryString.split(Constant.AMPERSAND);
+        String[] kvs = originQueryString.split(Constant.AMPERSAND);
         for (String kv : kvs) {
-            if (kv != null && !kv.isEmpty()) {
-                String[] kv0 = kv.split(Constant.EQ, 2);
-                if (kv0.length == 2) {
-                    String k = kv0[0];
-                    String v = kv0[1];
-                    String[] vs = map.get(k);
-                    if (vs == null) {
-                        // 没有创建
-                        vs = new String[]{v};
-                    } else {
-                        // 已存在，扩容1
-                        String[] tmp = new String[vs.length + 1];
-                        System.arraycopy(vs, 0, tmp, 0, vs.length);
-                        tmp[vs.length] = v;
-                        vs = tmp;
-                    }
-                    map.put(k, vs);
-                } else if (kv0.length == 1) {
-                    map.put(kv0[0], new String[0]);
-                }
+            if (kv == null || kv.isEmpty()) {
+                continue;
             }
+            int eq = kv.indexOf('=');
+            String rawKey = eq >= 0 ? kv.substring(0, eq) : kv;
+            String rawValue = eq >= 0 ? kv.substring(eq + 1) : null;
+            String key = decode(rawKey);
+            if (key.isEmpty()) {
+                continue;
+            }
+            String[] vs = map.get(key);
+            if (vs == null) {
+                // 没有 '=' 的参数按 Servlet 语义是空字符串
+                vs = rawValue == null ? new String[]{""} : new String[]{decode(rawValue)};
+            } else if (rawValue != null) {
+                String[] tmp = Arrays.copyOf(vs, vs.length + 1);
+                tmp[vs.length] = decode(rawValue);
+                vs = tmp;
+            }
+            map.put(key, vs);
         }
         return map;
     }
 
+    private static String decode(String value) {
+        try {
+            return URLDecoder.decode(value, Constant.UTF8);
+        } catch (UnsupportedEncodingException e) {
+            HttpRawLogFilter.LOGGER.error("Query string URL解码失败", e);
+            return value;
+        }
+    }
 
     /**
      * @param parameterMapAll 原始query string
@@ -353,6 +507,5 @@ public class RequestWrapper extends HttpServletRequestWrapper {
         }
         return stringBuilder.toString();
     }
-
 
 }
