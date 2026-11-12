@@ -5,24 +5,166 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CENTRAL_PUBLISHING_TYPE: ${{ vars.CENTRAL_PUBLISHING_TYPE }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - uses: gradle/actions/setup-gradle@v4
-      - name: Build signed artifacts and zip for Central Portal
+
+      - name: Verify tag matches project version
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/^version=//p' gradle.properties | tr -d '\r')
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "project_version=$VERSION"
+          echo "tag=$GITHUB_REF_NAME"
+          case "$VERSION" in
+            *-SNAPSHOT)
+              echo "::error::SNAPSHOT versions cannot be published to Maven Central"
+              exit 1
+              ;;
+          esac
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match version $VERSION"
+            exit 1
+          fi
+
+      - name: Build, test and sign
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: |
+          set -euo pipefail
+          : "${SIGNING_KEY:?SIGNING_KEY repository secret is required}"
+          : "${SIGNING_PASSWORD:?SIGNING_PASSWORD repository secret is required}"
           chmod +x gradlew
-          ./gradlew --no-daemon :core:publishAndZip
-      - uses: actions/upload-artifact@v4
+          ./gradlew --no-daemon :test:test :core:publishAndZip
+
+      - name: Verify signed bundle
+        run: |
+          set -euo pipefail
+          ASC_COUNT=$(find core/build/repo -name '*.asc' | wc -l | tr -d ' ')
+          echo "signed_artifacts=$ASC_COUNT"
+          if [ "$ASC_COUNT" -lt 5 ]; then
+            echo "::error::expected at least 5 .asc files, found $ASC_COUNT"
+            exit 1
+          fi
+          ZIP=$(find core/build -maxdepth 1 -name 'http-raw-log-*.zip' | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "::error::Maven Central bundle zip not found"
+            exit 1
+          fi
+          echo "bundle=$ZIP"
+          printf 'BUNDLE=%s\n' "$ZIP" >> "$GITHUB_ENV"
+
+      - name: Upload bundle to Central Portal
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${CENTRAL_USERNAME:?CENTRAL_USERNAME repository secret is required}"
+          : "${CENTRAL_PASSWORD:?CENTRAL_PASSWORD repository secret is required}"
+          : "${BUNDLE:?bundle path is missing}"
+
+          TYPE="${CENTRAL_PUBLISHING_TYPE:-USER_MANAGED}"
+          case "$TYPE" in
+            AUTOMATIC|USER_MANAGED) ;;
+            *)
+              echo "::error::invalid CENTRAL_PUBLISHING_TYPE=$TYPE (expected AUTOMATIC or USER_MANAGED)"
+              exit 1
+              ;;
+          esac
+
+          AUTH=$(printf '%s:%s' "$CENTRAL_USERNAME" "$CENTRAL_PASSWORD" | base64 -w0)
+          HTTP_CODE=$(curl -sS -o /tmp/central-upload.out -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $AUTH" \
+            -F "bundle=@${BUNDLE};type=application/octet-stream" \
+            "https://central.sonatype.com/api/v1/publisher/upload?name=${GITHUB_REF_NAME}&publishingType=${TYPE}")
+          cat /tmp/central-upload.out
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "::error::Central Portal upload failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          DEPLOYMENT_ID=$(tr -d '[:space:]' < /tmp/central-upload.out)
+          if ! printf '%s' "$DEPLOYMENT_ID" | grep -Eq '^[0-9a-fA-F-]{36}$'; then
+            echo "::error::unexpected deployment id: $DEPLOYMENT_ID"
+            exit 1
+          fi
+          echo "deployment_id=$DEPLOYMENT_ID"
+          printf 'DEPLOYMENT_ID=%s\n' "$DEPLOYMENT_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for Central Portal validation
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${DEPLOYMENT_ID:?deployment id is missing}"
+          TYPE="${CENTRAL_PUBLISHING_TYPE:-USER_MANAGED}"
+          AUTH=$(printf '%s:%s' "$CENTRAL_USERNAME" "$CENTRAL_PASSWORD" | base64 -w0)
+
+          for i in $(seq 1 90); do
+            JSON=$(curl -sS -X POST \
+              -H "Authorization: Bearer $AUTH" \
+              "https://central.sonatype.com/api/v1/publisher/status?id=${DEPLOYMENT_ID}")
+            STATE=$(printf '%s' "$JSON" | jq -r '.deploymentState // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")
+            echo "deployment_state=$STATE"
+
+            case "$STATE" in
+              PUBLISHED)
+                {
+                  echo "### Maven Central: published"
+                  echo ""
+                  echo "- Deployment: \`$DEPLOYMENT_ID\`"
+                  echo "- Mode: \`$TYPE\`"
+                } >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+                ;;
+              VALIDATED)
+                if [ "$TYPE" = "USER_MANAGED" ]; then
+                  {
+                    echo "### Maven Central: validated"
+                    echo ""
+                    echo "- Deployment: \`$DEPLOYMENT_ID\`"
+                    echo "- Next: [open Central Portal](https://central.sonatype.com/publishing/deployments) and click **Publish**"
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  echo "::notice title=Central deployment validated::Open https://central.sonatype.com/publishing/deployments and click Publish"
+                  exit 0
+                fi
+                ;;
+              FAILED)
+                echo "$JSON" | jq . 2>/dev/null || echo "$JSON"
+                echo "::error::Central Portal deployment failed"
+                exit 1
+                ;;
+            esac
+
+            sleep 10
+          done
+
+          echo "::error::timed out waiting for Central Portal deployment $DEPLOYMENT_ID"
+          exit 1
+
+      - name: Upload bundle artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: maven-central-bundle
           path: core/build/http-raw-log-*.zip
+          if-no-files-found: warn

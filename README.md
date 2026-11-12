@@ -149,10 +149,63 @@ SIGNING_KEY="$(cat private.pgp)" SIGNING_PASSWORD='***' ./gradlew :core:publishA
 ```
 
 - 本机签名使用 Gradle `signing` 插件的标准属性 `signing.keyId`/`signing.password`/`signing.secretKeyRingFile`，配置一次即可；CI 继续使用 `SIGNING_KEY`/`SIGNING_PASSWORD`，也可用 `-PsigningKey/-PsigningPassword`。
-- `publishAndZip` 的产物位于 `core/build/http-raw-log-<version>.zip`，上传到 <https://central.sonatype.com/publish>；正常会生成 5 个 `.asc`。
+- `publishAndZip` 的产物位于 `core/build/http-raw-log-<version>.zip`，正常会生成 5 个 `.asc`；手动发布时上传到 <https://central.sonatype.com/publish>。
 - 没有配置签名密钥时，`signing` 会被跳过，`publishToMavenLocal` 仍可正常使用；没有 `.asc` 的 zip 不能提交到 Central。
 - CI 配置：GitHub Actions 见 `.github/workflows/ci.yml`（JDK 17 + Gradle Wrapper）；Gitee Go 见 `.workflow/MasterPipeline.yml`。
 - 完整的 GPG 密钥准备、Central Portal 上传步骤和 CI 说明见 [项目维护指南 §4](doc/项目维护指南.md)。
+
+#### 验证签名
+
+发布公钥完整指纹：
+
+```text
+5AFD 16C6 8829 71E6 F606 CF00 2F53 3D5A 0FA3 14E7
+```
+
+Key ID：`2F533D5A0FA314E7`
+
+```bash
+# 1. 获取公钥
+gpg --keyserver keyserver.ubuntu.com --recv-keys 2F533D5A0FA314E7
+
+# 2. 核对完整指纹
+gpg --fingerprint 2F533D5A0FA314E7
+
+# 3. 下载 jar 和签名
+base=https://repo1.maven.org/maven2/com/skycong/http-raw-log/1.1.0
+curl -LO "$base/http-raw-log-1.1.0.jar"
+curl -LO "$base/http-raw-log-1.1.0.jar.asc"
+
+# 4. 验签
+gpg --verify http-raw-log-1.1.0.jar.asc http-raw-log-1.1.0.jar
+```
+
+看到 `Good signature` 且指纹与上面一致即通过。`[unknown]` 只表示本地尚未信任该公钥，不代表签名无效；身份确认以完整指纹和 Central 命名空间为准。pom、sources、javadoc、module 的 `.asc` 同理。
+
+#### 自动发布（GitHub Actions）
+
+推送 `v*` tag 后，[release.yml](.github/workflows/release.yml) 会：
+
+1. 校验 tag 与 `gradle.properties` 版本一致（SNAPSHOT 直接拒绝）；
+2. 跑全量测试，生成带 5 个 `.asc` 的 zip；
+3. 调用 Central Portal Publisher API 上传；
+4. 轮询部署状态，校验通过后按模式继续。
+
+仓库 Secrets：
+
+| Secret | 用途 |
+|---|---|
+| `SIGNING_KEY` / `SIGNING_PASSWORD` | GPG 私钥 armored 文本 / 口令 |
+| `CENTRAL_USERNAME` / `CENTRAL_PASSWORD` | Central Portal User Token 的用户名 / 密码 |
+
+可选仓库变量 `CENTRAL_PUBLISHING_TYPE`：
+
+| 值 | 行为 |
+|---|---|
+| `USER_MANAGED`（默认） | 校验通过后停在 `VALIDATED`，到 Central 页面点 **Publish** |
+| `AUTOMATIC` | 校验通过后自动发布，**版本不可撤销** |
+
+User Token 在 <https://central.sonatype.com/account> 生成。首次建议用 `USER_MANAGED`，确认无误后再切 `AUTOMATIC`。
 
 ---
 
