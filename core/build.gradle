@@ -1,3 +1,15 @@
+import groovy.json.JsonSlurper
+import java.net.URI
+import java.net.URLEncoder
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
+import java.time.Duration
+import java.util.Base64
+import java.util.Locale
+import java.util.zip.ZipFile
+
 apply plugin: 'maven-publish'
 
 def bootVersion = "3.2.5"
@@ -158,9 +170,162 @@ task publishAndZip {
                 println "🔏 已生成 ${signedFiles.size()} 个签名文件"
             }
             println "✅ ZIP 已生成: ${zipFile.absolutePath}"
-            println "📦 请上传到 https://central.sonatype.com/publish"
+            println "📦 可使用 :core:publishToCentralPortal 上传，或手动上传到 https://central.sonatype.com/publish"
         } else {
             println "❌ 目录不存在: ${repoDir.absolutePath}"
         }
+    }
+}
+
+/**
+ * 将 publishAndZip 生成的 zip 上传到 Central Portal。
+ *
+ * 凭据（任选其一）：
+ * - ~/.gradle/gradle.properties: CENTRAL_USERNAME / CENTRAL_PASSWORD
+ * - 环境变量: CENTRAL_USERNAME / CENTRAL_PASSWORD
+ *
+ * 用法:
+ *   ./gradlew :core:publishToCentralPortal
+ *   ./gradlew :core:publishToCentralPortal -PcentralPublishingType=USER_MANAGED
+ */
+tasks.register('publishToCentralPortal') {
+    group = 'publishing'
+    description = 'Upload the built Maven Central bundle zip to central.sonatype.com'
+    mustRunAfter 'publishAndZip'
+
+    doLast {
+        def zipFile = project.layout.buildDirectory.file("http-raw-log-${project.version}.zip").get().asFile
+        if (!zipFile.isFile()) {
+            throw new GradleException("找不到构建好的 zip: ${zipFile.absolutePath}\n" +
+                    "请先执行: ./gradlew :core:publishAndZip")
+        }
+
+        def ascCount = 0
+        def zip = new ZipFile(zipFile)
+        try {
+            def entries = zip.entries()
+            while (entries.hasMoreElements()) {
+                def entry = entries.nextElement()
+                if (!entry.directory && entry.name.endsWith('.asc')) {
+                    ascCount++
+                }
+            }
+        } finally {
+            zip.close()
+        }
+        if (ascCount < 5) {
+            throw new GradleException("zip 中只有 ${ascCount} 个 .asc，Maven Central 会拒绝；" +
+                    "请重新执行 :core:publishAndZip 并确认签名配置")
+        }
+
+        def centralUsername = project.findProperty('CENTRAL_USERNAME')
+                ?: System.getenv('CENTRAL_USERNAME')
+        def centralPassword = project.findProperty('CENTRAL_PASSWORD')
+                ?: System.getenv('CENTRAL_PASSWORD')
+        if (!centralUsername || !centralPassword) {
+            throw new GradleException('缺少 Central Portal 凭据：请在 ~/.gradle/gradle.properties 配置 ' +
+                    'CENTRAL_USERNAME/CENTRAL_PASSWORD，或设置同名环境变量')
+        }
+
+        def publishingType = (project.findProperty('centralPublishingType')
+                ?: project.findProperty('CENTRAL_PUBLISHING_TYPE')
+                ?: System.getenv('CENTRAL_PUBLISHING_TYPE')
+                ?: 'USER_MANAGED').toString().toUpperCase(Locale.ROOT)
+        if (!(publishingType in ['AUTOMATIC', 'USER_MANAGED'])) {
+            throw new GradleException("centralPublishingType 只能是 AUTOMATIC 或 USER_MANAGED，当前: ${publishingType}")
+        }
+
+        def auth = Base64.encoder.encodeToString(
+                "${centralUsername}:${centralPassword}".getBytes(StandardCharsets.UTF_8))
+        def centralEndpoint = (project.findProperty('centralEndpoint')
+                ?: 'https://central.sonatype.com').toString().replaceAll('/+$', '')
+        def bundleName = "http-raw-log-${project.version}"
+        def uploadUri = URI.create("${centralEndpoint}/api/v1/publisher/upload" +
+                "?name=${URLEncoder.encode(bundleName, 'UTF-8')}&publishingType=${publishingType}")
+
+        def boundary = "----HttpRawLog${UUID.randomUUID().toString().replace('-', '')}"
+        def fileBytes = zipFile.bytes
+        def multipartHeader = "--${boundary}\r\n" +
+                "Content-Disposition: form-data; name=\"bundle\"; filename=\"${zipFile.name}\"\r\n" +
+                "Content-Type: application/octet-stream\r\n\r\n"
+        def multipartFooter = "\r\n--${boundary}--\r\n"
+        def body = new ByteArrayOutputStream(fileBytes.length + multipartHeader.length() + multipartFooter.length())
+        body.write(multipartHeader.getBytes(StandardCharsets.UTF_8))
+        body.write(fileBytes)
+        body.write(multipartFooter.getBytes(StandardCharsets.UTF_8))
+
+        def client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(30))
+                .build()
+        def uploadRequest = HttpRequest.newBuilder(uploadUri)
+                .timeout(Duration.ofMinutes(5))
+                .header('Authorization', "Bearer ${auth}")
+                .header('Content-Type', "multipart/form-data; boundary=${boundary}")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()))
+                .build()
+
+        logger.lifecycle("⬆️ 上传 ${zipFile.name} (${fileBytes.length} bytes)，publishingType=${publishingType}")
+        if (publishingType == 'AUTOMATIC') {
+            logger.lifecycle('⚠️ AUTOMATIC 模式：校验通过后会自动发布，Maven Central 版本不可撤销')
+        }
+
+        def uploadResponse = client.send(uploadRequest,
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+        if (uploadResponse.statusCode() != 201) {
+            throw new GradleException("Central Portal 上传失败: HTTP ${uploadResponse.statusCode()}\n" +
+                    uploadResponse.body())
+        }
+
+        def deploymentId = uploadResponse.body().trim()
+        if (!(deploymentId ==~ /[0-9a-fA-F-]{36}/)) {
+            throw new GradleException("Central Portal 返回了非预期的 deployment id: ${deploymentId}")
+        }
+        logger.lifecycle("📦 deploymentId=${deploymentId}")
+
+        def statusRequest = HttpRequest.newBuilder(
+                URI.create("${centralEndpoint}/api/v1/publisher/status?id=${deploymentId}"))
+                .timeout(Duration.ofSeconds(30))
+                .header('Authorization', "Bearer ${auth}")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build()
+
+        def jsonSlurper = new JsonSlurper()
+        def lastState = null
+        for (int i = 0; i < 90; i++) {
+            def statusResponse = client.send(statusRequest,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+            if (statusResponse.statusCode() != 200) {
+                throw new GradleException("查询 Central Portal 状态失败: HTTP ${statusResponse.statusCode()}\n" +
+                        statusResponse.body())
+            }
+
+            def status = jsonSlurper.parseText(statusResponse.body()) as Map
+            def state = status.deploymentState?.toString()?.toUpperCase(Locale.ROOT)
+            if (!state) {
+                throw new GradleException("Central Portal 返回缺少 deploymentState: ${statusResponse.body()}")
+            }
+            if (state != lastState) {
+                logger.lifecycle("Central Portal 状态: ${state}")
+                lastState = state
+            }
+
+            switch (state) {
+                case 'PUBLISHED':
+                    logger.lifecycle("✅ 已发布: https://central.sonatype.com/artifact/" +
+                            "${project.group}/${coreArtifactId}/${project.version}")
+                    return
+                case 'VALIDATED':
+                    if (publishingType == 'USER_MANAGED') {
+                        logger.lifecycle("✅ 校验通过，deploymentId=${deploymentId}")
+                        logger.lifecycle("👉 打开 https://central.sonatype.com/publishing/deployments 点击 Publish")
+                        return
+                    }
+                    break
+                case 'FAILED':
+                    throw new GradleException("Central Portal 部署失败:\n${statusResponse.body()}")
+            }
+            Thread.sleep(10000)
+        }
+        throw new GradleException("等待 Central Portal 部署超时: ${deploymentId}")
     }
 }

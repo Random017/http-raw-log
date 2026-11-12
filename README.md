@@ -146,10 +146,20 @@
 
 # CI 或临时环境可用 in-memory key
 SIGNING_KEY="$(cat private.pgp)" SIGNING_PASSWORD='***' ./gradlew :core:publishAndZip
+
+# 上传已构建好的 zip 到 Central Portal
+# 凭据读取 ~/.gradle/gradle.properties 的 CENTRAL_USERNAME / CENTRAL_PASSWORD
+# 默认 USER_MANAGED：校验通过后到 Central 页面点 Publish
+./gradlew :core:publishToCentralPortal
+
+# 全自动发布：校验通过后自动发布，版本不可撤销
+./gradlew :core:publishToCentralPortal -PcentralPublishingType=AUTOMATIC
 ```
 
+- `publishAndZip` 的产物位于 `core/build/http-raw-log-<version>.zip`，正常会生成 5 个 `.asc`；可用 `:core:publishToCentralPortal` 自动上传，也可手动上传到 <https://central.sonatype.com/publish>。
+- `publishToCentralPortal` 不会重新构建，直接上传 `core/build/http-raw-log-<version>.zip`；zip 不存在时先执行 `:core:publishAndZip`。上传前会检查 zip 内至少有 5 个 `.asc`，没有签名会直接失败。
+- 凭据也可用同名环境变量 `CENTRAL_USERNAME` / `CENTRAL_PASSWORD`；`publishingType` 可用 `-PcentralPublishingType=USER_MANAGED|AUTOMATIC` 或 `CENTRAL_PUBLISHING_TYPE` 覆盖。
 - 本机签名使用 Gradle `signing` 插件的标准属性 `signing.keyId`/`signing.password`/`signing.secretKeyRingFile`，配置一次即可；CI 继续使用 `SIGNING_KEY`/`SIGNING_PASSWORD`，也可用 `-PsigningKey/-PsigningPassword`。
-- `publishAndZip` 的产物位于 `core/build/http-raw-log-<version>.zip`，正常会生成 5 个 `.asc`；手动发布时上传到 <https://central.sonatype.com/publish>。
 - 没有配置签名密钥时，`signing` 会被跳过，`publishToMavenLocal` 仍可正常使用；没有 `.asc` 的 zip 不能提交到 Central。
 - CI 配置：GitHub Actions 见 `.github/workflows/ci.yml`（JDK 17 + Gradle Wrapper）；Gitee Go 见 `.workflow/MasterPipeline.yml`。
 - 完整的 GPG 密钥准备、Central Portal 上传步骤和 CI 说明见 [项目维护指南 §4](doc/项目维护指南.md)。
@@ -188,8 +198,8 @@ gpg --verify http-raw-log-1.1.0.jar.asc http-raw-log-1.1.0.jar
 
 1. 校验 tag 与 `gradle.properties` 版本一致（SNAPSHOT 直接拒绝）；
 2. 跑全量测试，生成带 5 个 `.asc` 的 zip；
-3. 调用 Central Portal Publisher API 上传；
-4. 轮询部署状态，校验通过后按模式继续。
+3. 调用 `:core:publishToCentralPortal` 上传并轮询状态；
+4. 校验通过后按模式继续。
 
 仓库 Secrets：
 
