@@ -5,7 +5,7 @@
 > 打印 http 请求原始报文日志
 >
 
-> 已发布到 Maven Central：[`com.skycong:http-raw-log:1.1.0`](https://central.sonatype.com/artifact/com.skycong/http-raw-log/1.1.0)
+> 已发布到 Maven Central：[`com.skycong:http-raw-log:1.1.1`](https://central.sonatype.com/artifact/com.skycong/http-raw-log/1.1.1)
 
 ### 快速接入
 
@@ -15,7 +15,7 @@
   <dependency>
     <groupId>com.skycong</groupId>
     <artifactId>http-raw-log</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
   </dependency>
   ```
 
@@ -182,12 +182,12 @@ gpg --keyserver keyserver.ubuntu.com --recv-keys 2F533D5A0FA314E7
 gpg --fingerprint 2F533D5A0FA314E7
 
 # 3. 下载 jar 和签名
-base=https://repo1.maven.org/maven2/com/skycong/http-raw-log/1.1.0
-curl -LO "$base/http-raw-log-1.1.0.jar"
-curl -LO "$base/http-raw-log-1.1.0.jar.asc"
+base=https://repo1.maven.org/maven2/com/skycong/http-raw-log/1.1.1
+curl -LO "$base/http-raw-log-1.1.1.jar"
+curl -LO "$base/http-raw-log-1.1.1.jar.asc"
 
 # 4. 验签
-gpg --verify http-raw-log-1.1.0.jar.asc http-raw-log-1.1.0.jar
+gpg --verify http-raw-log-1.1.1.jar.asc http-raw-log-1.1.1.jar
 ```
 
 看到 `Good signature` 且指纹与上面一致即通过。`[unknown]` 只表示本地尚未信任该公钥，不代表签名无效；身份确认以完整指纹和 Central 命名空间为准。pom、sources、javadoc、module 的 `.asc` 同理。
@@ -220,6 +220,16 @@ User Token 在 <https://central.sonatype.com/account> 生成。首次建议用 `
 ---
 
 ### 更新日志
+
+#### v1.1.1
+
+> 2026-11-12 已发布到 Maven Central。
+
+- **热点路径减配**：响应捕获缓冲区改为按需分配；UTF-8 截断和历史字节计费不再复制整个 body；静态资源排除、空 body、ASCII 日志行增加快速路径
+- **链路日志有界**：每条 history 最多 200 行 trace log，trace log 与 txId 一并计入 `history.maxTotalBytes`
+- **文件追踪更快**：未配置 txId 函数时只推进文件位置，不再逐行解码/缓存；ASCII 日志行跳过二次编码
+- **统计归一化收敛**：数字/UUID/长十六进制合并为单次正则替换，统计 key 严格封顶，排序避免装箱和溢出
+- **可复现构建**：归档固定文件顺序与时间戳，同一源码连续两次 clean build 的 core jar SHA-256 一致
 
 #### v1.1.0
 
