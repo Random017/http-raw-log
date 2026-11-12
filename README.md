@@ -5,6 +5,8 @@
 > 打印 http 请求原始报文日志
 >
 
+> 已发布到 Maven Central：[`com.skycong:http-raw-log:1.1.0`](https://central.sonatype.com/artifact/com.skycong/http-raw-log/1.1.0)
+
 ### 快速接入
 
 - #### 1 引入依赖坐标
@@ -157,6 +159,8 @@ SIGNING_KEY="$(cat private.pgp)" SIGNING_PASSWORD='***' ./gradlew :core:publishA
 ### 更新日志
 
 #### v1.1.0
+
+> 2026-11-11 已发布到 Maven Central。
 
 - **响应 tee + 大小可控**：`ResponseWrapper` 只旁路复制日志，客户端始终收到完整响应；日志上限默认 64KB（`maxResponseLogBytes` 可配），不再固定 4MB
 - **无 charset 的 JSON 响应不再乱码**：字符集选择优先取 `Content-Type` 的 `charset=`，JSON/XML 缺省按 UTF-8；Tomcat 默认的 ISO-8859-1 只在严格 UTF-8 校验失败时使用，请求体日志和响应体日志共用同一套规则。业务侧 `getReader()` 不做该启发式，保持 `charset=`/容器声明编码（JSON/XML 缺省 UTF-8），避免日志组件改变业务读取语义
