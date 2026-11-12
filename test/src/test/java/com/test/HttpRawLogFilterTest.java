@@ -15,9 +15,12 @@ import org.springframework.mock.web.MockFilterConfig;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import jakarta.servlet.ServletRequest;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -102,6 +105,22 @@ public class HttpRawLogFilterTest {
         History history = store.snapshot().get(0);
         assertTrue(history.getRequestBody().startsWith("[request body skipped: content-length=1048576"),
                 "unexpected: " + history.getRequestBody());
+    }
+
+    @Test
+    void emptyBody_isNotWrapped() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/test/echo");
+        request.setContentType("application/json");
+        request.setContent(new byte[0]);
+        request.addHeader("Content-Length", "0");
+        AtomicReference<ServletRequest> passedRequest = new AtomicReference<>();
+
+        filter.doFilter(request, new MockHttpServletResponse(),
+                (req, res) -> passedRequest.set(req));
+
+        assertSame(request, passedRequest.get(), "empty body should not allocate a request wrapper");
+        History history = store.snapshot().get(0);
+        assertEquals("", history.getRequestBody());
     }
 
     @Test

@@ -26,6 +26,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -84,6 +85,11 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
     private Set<String> urlExcludePatterns;
 
     /**
+     * 从形如 <code>&#47;**&#47;*.ext</code> 的排除模式提取扩展名，用于快速跳过静态资源
+     */
+    private Set<String> urlExcludeSuffixes = Collections.emptySet();
+
+    /**
      * form-data  是否需要重新编码(0: 自动判断，1：始终需要编码，2：始终不编码)
      */
     private int formDataEncodeFlag;
@@ -127,6 +133,7 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
         if (filterConfig == null) {
             logHeaders = defaultLogHeaders();
             urlExcludePatterns = defaultUrlExcludePatterns();
+            urlExcludeSuffixes = buildExcludeSuffixes(urlExcludePatterns);
             formDataEncodeFlag = 0;
             logStatistics = true;
             maxRequestBodyBytes = DEFAULT_MAX_REQUEST_BODY_BYTES;
@@ -150,6 +157,7 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
                 .filter(pattern -> !pattern.isEmpty())
                 .collect(Collectors.toCollection(HashSet::new));
         urlExcludePatterns.addAll(Constant.DEFAULT_URL_EXCLUDE_PATTERNS);
+        urlExcludeSuffixes = buildExcludeSuffixes(urlExcludePatterns);
 
         logStatistics = parseBoolean(filterConfig.getInitParameter("logStatistics"), true);
 
@@ -171,6 +179,26 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
 
     private static Set<String> defaultUrlExcludePatterns() {
         return new HashSet<>(Constant.DEFAULT_URL_EXCLUDE_PATTERNS);
+    }
+
+    /**
+     * 提取只按扩展名匹配的排除模式，例如 <code>&#47;**&#47;*.html</code> 提取为 {@code .html}。
+     * 仅作为 {@link #excludeMatch(String)} 的快速路径，未命中的 URI 仍走 AntPathMatcher。
+     */
+    private static Set<String> buildExcludeSuffixes(Set<String> patterns) {
+        if (patterns == null || patterns.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<String> suffixes = new HashSet<>();
+        for (String pattern : patterns) {
+            if (pattern != null
+                    && pattern.startsWith("/**/*.")
+                    && pattern.indexOf('*', 5) < 0
+                    && pattern.indexOf('?', 5) < 0) {
+                suffixes.add(pattern.substring(5));
+            }
+        }
+        return suffixes;
     }
 
     private static String option(String value) {
@@ -216,13 +244,14 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        printLog(request, response, chain);
+        printLog(request, response, chain, requestURI);
     }
 
-    private void printLog(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+    private void printLog(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+                          String requestURL) throws IOException, ServletException {
         long st = System.currentTimeMillis();
         // 定义变量
-        String logId, method, requestURL, requestHeaders, queryStringLog, requestBody;
+        String logId, method, requestHeaders, queryStringLog, requestBody;
         // 写入logId
         logId = request.getHeader(Constant.LOG_ID);
         if (logId == null || logId.isEmpty()) {
@@ -230,7 +259,6 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
         }
         response.setHeader(Constant.LOG_ID, logId);
         method = request.getMethod();
-        requestURL = request.getRequestURI();
         String contentType = request.getContentType();
 
         // 需要log 的request headers；LinkedHashMap 保证顺序，跳过 null/空值
@@ -245,43 +273,51 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
         ResponseWrapper responseWrapper = new ResponseWrapper(response, maxResponseLogBytes);
         boolean isMultipart = isMultipartContentType(contentType);
         ServletRequest requestToUse;
-        if (!mayHaveRequestBody(request)) {
+        if (!mayHaveRequestBody(method)) {
             // GET/HEAD 等本来就没有 body，直接记录空 body，不能写成 skipped 污染历史
             queryStringLog = RequestWrapper.queryStringLog(RequestWrapper.getQueryStringMap(request.getQueryString()));
             requestBody = "";
             requestToUse = request;
-        } else if (isMultipart) {
-            // 大文件/未知长度 multipart 不解析，避免 FormRequestWrapper 把上传流读进内存
-            String skipReason = requestBodySkipReason(request, contentType);
-            if (skipReason != null) {
-                queryStringLog = RequestWrapper.queryStringLog(RequestWrapper.getQueryStringMap(request.getQueryString()));
-                requestBody = "[request body skipped: " + skipReason + "]";
-                requestToUse = request;
-            } else {
-                // 是 multipart/form-data 个请求，参考：org.springframework.web.servlet.DispatcherServlet#doDispatch
-                FormRequestWrapper formRequestWrapper = new FormRequestWrapper(request, formDataEncodeFlag);
-                queryStringLog = RequestWrapper.queryStringLog(formRequestWrapper.getParameterMap());
-                requestBody = "";
-                requestToUse = formRequestWrapper;
-            }
         } else {
-            String skipReason = requestBodySkipReason(request, contentType);
-            if (skipReason == null && declaredContentLength(request) < 0) {
-                // chunked/未知长度：最多预读 maxRequestBodyBytes+1 字节，剩余部分继续回放给业务
-                BoundedRequestWrapper boundedRequest = new BoundedRequestWrapper(request, maxRequestBodyBytes);
-                queryStringLog = RequestWrapper.queryStringLog(boundedRequest.getParameterMap());
-                requestBody = boundedRequest.getRequestBodyLogString();
-                requestToUse = boundedRequest;
-            } else if (skipReason != null) {
-                // 不包装请求：业务拿原始流，避免大 body / 二进制 body 占满内存
-                queryStringLog = RequestWrapper.queryStringLog(RequestWrapper.getQueryStringMap(request.getQueryString()));
-                requestBody = "[request body skipped: " + skipReason + "]";
-                requestToUse = request;
+            long contentLength = declaredContentLength(request);
+            if (isMultipart) {
+                // 大文件/未知长度 multipart 不解析，避免 FormRequestWrapper 把上传流读进内存
+                String skipReason = requestBodySkipReason(request, contentType, contentLength);
+                if (skipReason != null) {
+                    queryStringLog = RequestWrapper.queryStringLog(RequestWrapper.getQueryStringMap(request.getQueryString()));
+                    requestBody = "[request body skipped: " + skipReason + "]";
+                    requestToUse = request;
+                } else {
+                    // 是 multipart/form-data 个请求，参考：org.springframework.web.servlet.DispatcherServlet#doDispatch
+                    FormRequestWrapper formRequestWrapper = new FormRequestWrapper(request, formDataEncodeFlag);
+                    queryStringLog = RequestWrapper.queryStringLog(formRequestWrapper.getParameterMap());
+                    requestBody = "";
+                    requestToUse = formRequestWrapper;
+                }
             } else {
-                RequestWrapper requestWrapper = new RequestWrapper(request, formDataEncodeFlag);
-                queryStringLog = RequestWrapper.queryStringLog(requestWrapper.getParameterMap());
-                requestBody = requestWrapper.getRequestBodyLogString();
-                requestToUse = requestWrapper;
+                String skipReason = requestBodySkipReason(request, contentType, contentLength);
+                if (skipReason != null) {
+                    // 不包装请求：业务拿原始流，避免大 body / 二进制 body 占满内存
+                    queryStringLog = RequestWrapper.queryStringLog(RequestWrapper.getQueryStringMap(request.getQueryString()));
+                    requestBody = "[request body skipped: " + skipReason + "]";
+                    requestToUse = request;
+                } else if (contentLength == 0) {
+                    // 明确声明没有 body：无需包装，避免为每个空 POST 解析一次参数
+                    queryStringLog = RequestWrapper.queryStringLog(RequestWrapper.getQueryStringMap(request.getQueryString()));
+                    requestBody = "";
+                    requestToUse = request;
+                } else if (contentLength < 0) {
+                    // chunked/未知长度：最多预读 maxRequestBodyBytes+1 字节，剩余部分继续回放给业务
+                    BoundedRequestWrapper boundedRequest = new BoundedRequestWrapper(request, maxRequestBodyBytes);
+                    queryStringLog = RequestWrapper.queryStringLog(boundedRequest.getParameterMap());
+                    requestBody = boundedRequest.getRequestBodyLogString();
+                    requestToUse = boundedRequest;
+                } else {
+                    RequestWrapper requestWrapper = new RequestWrapper(request, formDataEncodeFlag);
+                    queryStringLog = RequestWrapper.queryStringLog(requestWrapper.getParameterMap());
+                    requestBody = requestWrapper.getRequestBodyLogString();
+                    requestToUse = requestWrapper;
+                }
             }
         }
 
@@ -310,8 +346,7 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
      * 是否可能带请求体。GET/HEAD/OPTIONS/TRACE 通常没有 body，
      * 不包装也不写 skipped 标记，避免污染历史记录。
      */
-    private static boolean mayHaveRequestBody(HttpServletRequest request) {
-        String method = request.getMethod();
+    private static boolean mayHaveRequestBody(String method) {
         return "POST".equalsIgnoreCase(method)
                 || "PUT".equalsIgnoreCase(method)
                 || "PATCH".equalsIgnoreCase(method)
@@ -336,9 +371,12 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
      * 请求体是否跳过捕获：大 body、二进制 body、压缩 body、form/multipart 未知长度都不包装请求；
      * 普通 chunked 请求由 {@link BoundedRequestWrapper} 做有界预读。
      *
+     * @param request       当前请求
+     * @param contentType   Content-Type
+     * @param contentLength 已解析的 Content-Length，-1 表示未知
      * @return 跳过原因；返回 null 表示可以安全包装
      */
-    private String requestBodySkipReason(HttpServletRequest request, String contentType) {
+    private String requestBodySkipReason(HttpServletRequest request, String contentType, long contentLength) {
         String contentEncoding = request.getHeader("Content-Encoding");
         if (contentEncoding != null && !contentEncoding.isEmpty()
                 && !"identity".equalsIgnoreCase(contentEncoding.trim())) {
@@ -347,7 +385,6 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
         if (isBinaryContentType(contentType)) {
             return "content-type=" + contentType;
         }
-        long contentLength = declaredContentLength(request);
         if (contentLength < 0) {
             // form 需要完整 body 解析参数，multipart 需要完整 part；都保持原来的跳过策略。
             // 其他类型交给 BoundedRequestWrapper 预读并回放。
@@ -382,6 +419,10 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
 
     private static boolean isBinaryContentType(String contentType) {
         if (contentType == null) {
+            return false;
+        }
+        // multipart 的 boundary 可能很长，先按前缀排除，避免为它复制整串小写
+        if (contentType.regionMatches(true, 0, "multipart/", 0, 10)) {
             return false;
         }
         String ct = contentType.toLowerCase(Locale.ROOT);
@@ -505,7 +546,7 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
                         + responseWrapper.getTotalBytesWritten();
             } else if (isTextContent(captured, len, contentType)) {
                 responseBody = new String(captured, 0, len,
-                        CharsetSupport.resolve(response.getContentType(), response.getCharacterEncoding(), captured, len));
+                        CharsetSupport.resolve(contentType, response.getCharacterEncoding(), captured, len));
                 if (responseWrapper.isTruncated()) {
                     responseBody += "\n... [response body truncated, only first "
                             + responseWrapper.getMaxLogBodySize() + " bytes logged]";
@@ -523,10 +564,11 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
                         : responseBody + "\n" + errorSummary;
             }
 
-            String httpStatus = String.valueOf(response.getStatus());
+            int status = response.getStatus();
+            String httpStatus = String.valueOf(status);
             if (failure != null) {
                 // 异常仍在向上抛时 response.getStatus() 还是 200，这里按 500 记录
-                if (response.getStatus() < 400) {
+                if (status < 400) {
                     httpStatus = "500";
                 }
                 responseBody = appendException(responseBody, failure);
@@ -590,6 +632,13 @@ public class HttpRawLogFilter extends OncePerRequestFilter {
      * @return true 在排除URL列表中，false 不在
      */
     private boolean excludeMatch(String uri) {
+        if (!urlExcludeSuffixes.isEmpty()) {
+            int lastSlash = uri.lastIndexOf('/');
+            int lastDot = uri.lastIndexOf('.');
+            if (lastDot > lastSlash && urlExcludeSuffixes.contains(uri.substring(lastDot))) {
+                return true;
+            }
+        }
         for (String excludePattern : urlExcludePatterns) {
             if (PATH_MATCHER.match(excludePattern, uri)) {
                 return true;

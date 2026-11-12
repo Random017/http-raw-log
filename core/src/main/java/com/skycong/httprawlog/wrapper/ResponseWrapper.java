@@ -51,14 +51,19 @@ public class ResponseWrapper extends HttpServletResponseWrapper {
     private static final int INITIAL_BUFFER_SIZE = 8 * 1024;
 
     /**
+     * 空缓冲：没有 body 的请求不再为每个请求预分配 8KB
+     */
+    private static final byte[] EMPTY_BUFFER = new byte[0];
+
+    /**
      * 日志上限，由 filter 按配置传入
      */
     private final int maxLogBodySize;
 
     /**
-     * 日志缓冲：initial 8KB，按需翻倍，上限 maxLogBodySize
+     * 日志缓冲：首次捕获时分配，按需翻倍，上限 maxLogBodySize
      */
-    private byte[] captured;
+    private byte[] captured = EMPTY_BUFFER;
 
     /**
      * 日志缓冲中有效字节数
@@ -116,7 +121,6 @@ public class ResponseWrapper extends HttpServletResponseWrapper {
     public ResponseWrapper(HttpServletResponse response, int maxLogBodySize) {
         super(response);
         this.maxLogBodySize = maxLogBodySize > 0 ? maxLogBodySize : DEFAULT_MAX_LOG_BODY_SIZE;
-        this.captured = new byte[Math.min(INITIAL_BUFFER_SIZE, this.maxLogBodySize)];
     }
 
     @Override
@@ -385,9 +389,11 @@ public class ResponseWrapper extends HttpServletResponseWrapper {
         if (required <= captured.length) {
             return;
         }
-        int newCapacity = captured.length;
+        int newCapacity = captured.length == 0
+                ? Math.min(INITIAL_BUFFER_SIZE, maxLogBodySize)
+                : captured.length;
         while (newCapacity < required) {
-            newCapacity = Math.min(newCapacity * 2, maxLogBodySize);
+            newCapacity = (int) Math.min((long) newCapacity * 2, maxLogBodySize);
         }
         captured = Arrays.copyOf(captured, newCapacity);
     }

@@ -185,7 +185,16 @@ public class RequestWrapper extends HttpServletRequestWrapper {
                     if (read == -1) {
                         break;
                     }
-                    offset += read;
+                    if (read == 0) {
+                        // 阻塞式 ServletInputStream 正常不会返回 0；兜底读一个字节避免空转
+                        int single = is.read();
+                        if (single == -1) {
+                            break;
+                        }
+                        buf[offset++] = (byte) single;
+                    } else {
+                        offset += read;
+                    }
                 }
                 return offset == contentLength ? buf : Arrays.copyOf(buf, offset);
             }
@@ -383,8 +392,8 @@ public class RequestWrapper extends HttpServletRequestWrapper {
                 }
                 String head = formDatum.substring(0, headerEnd).trim();
                 int bodyStart = Math.min(formDatum.length(), headerEnd + 1);
-                // 文件大小估计值
-                int fileLength = formDatum.substring(bodyStart).getBytes(StandardCharsets.ISO_8859_1).length;
+                // 旧实现按 ISO-8859-1 再编码取长度；每个 char 最多对应 1 字节，直接算字符数等价且不复制文件内容
+                int fileLength = formDatum.length() - bodyStart;
                 formDataString.append(head).append("\tfile size = ").append(fileLength).append("\n--");
             } else {
                 formDataString.append(formDatum);

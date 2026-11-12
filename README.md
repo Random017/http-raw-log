@@ -235,7 +235,7 @@ User Token 在 <https://central.sonatype.com/account> 生成。首次建议用 `
 - **响应头补全**：Tomcat 通过 `setContentType` 设置的媒体类型不在 `getHeader("content-type")` 时，回退 `getContentType()`，日志不再丢失 content-type
 - **异步/SSE 正确记录**：Servlet 异步请求通过 `AsyncListener` 在真正完成时记录一次；`onComplete`/`onError`/`onTimeout` 去重，SSE 不缓存 body
 - **异常路径状态修正**：filter 捕获 `Throwable` 后仍记录日志，状态按 500 处理，responseBody 追加最内层异常类与消息摘要，然后原样抛出
-- **历史内存可控**：新增 `history.maxTotalBytes`（默认 4MB，按条数 + UTF-8 字节数双淘汰，CJK 不再被低估）和 `history.maxBodyBytes`（默认 32KB，UTF-8 安全截断）；新增 `/httpRawLog/history/{hLogId}` 单条详情接口
+- **历史内存可控**：新增 `history.maxTotalBytes`（默认 4MB，按条数 + UTF-8 字节数双淘汰，CJK 不再被低估）和 `history.maxBodyBytes`（默认 32KB，UTF-8 安全截断）；新增 `/httpRawLog/history/{hLogId}` 单条详情接口；链路日志每条 history 最多 200 行，并计入总字节预算
 - **请求体恢复完整**：修复 0.9.16 中“业务 body 被截断”的回归；小请求体完整回放，只有日志字符串会截断
 - **Writer 修复**：`getWriter()` 返回单实例并在请求结束时 flush，修复视图渲染/大响应丢内容；`getWriter()` 与 `getOutputStream()` 按 Servlet 规范互斥
 - **去掉静态状态与线程泄漏**：`HistoryStore`、`StatisticsApi`、`FileAppender` 改为 Spring 单例 bean，统计/文件监听线程改为 daemon 并由容器销毁；`FileAppender` 修复未配置 txId 函数时的 NPE 和逐行全量扫描

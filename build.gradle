@@ -52,6 +52,12 @@ subprojects {
         withSourcesJar()
     }
 
+    // 可复现构建：固定归档内文件顺序与时间戳，便于校验和对比
+    tasks.withType(AbstractArchiveTask).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+
     javadoc {
         options.encoding = "UTF-8"
         options.addStringOption('Xdoclint:none', '-quiet')

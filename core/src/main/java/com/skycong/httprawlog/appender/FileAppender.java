@@ -140,6 +140,12 @@ public class FileAppender implements DisposableBean {
                 lastPosition = 0;
             }
 
+            // 没有 txId 解析器时，日志文件与请求历史无关：只推进读取位置，不逐行解码
+            if (txIdFunction == null) {
+                lastPosition = fileSize;
+                return;
+            }
+
             // 如果文件有新内容
             if (fileSize > lastPosition) {
                 try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
@@ -149,9 +155,12 @@ public class FileAppender implements DisposableBean {
                     List<History> pendingHistories = pendingHistories();
                     String line;
                     while ((line = randomAccessFile.readLine()) != null) {
-                        line = new String(line.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                        // readLine() 按 ISO-8859-1 返回；纯 ASCII 行无需再编码/解码
+                        if (!isAscii(line)) {
+                            line = new String(line.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                        }
                         addLogLine(line);
-                        if (txIdFunction == null || pendingHistories.isEmpty()) {
+                        if (pendingHistories.isEmpty()) {
                             continue;
                         }
                         Iterator<History> iterator = pendingHistories.iterator();
@@ -160,7 +169,7 @@ public class FileAppender implements DisposableBean {
                             // 尝试解析txid并赋值
                             String txId = txIdFunction.apply(history, line);
                             if (txId != null) {
-                                history.setTxId(txId);
+                                historyStore.setTxId(history, txId);
                                 attachTraceLogs(history, txId);
                                 iterator.remove();
                                 break;
@@ -189,6 +198,15 @@ public class FileAppender implements DisposableBean {
         return pending;
     }
 
+    private static boolean isAscii(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) > 0x7F) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void addLogLine(String line) {
         synchronized (logCaches) {
             logCaches.addFirst(line);
@@ -204,8 +222,8 @@ public class FileAppender implements DisposableBean {
             while (iterator.hasNext()) {
                 String next = iterator.next();
                 if (traceFunction.apply(txId, next)) {
-                    // 匹配上了，添加并移除缓存
-                    history.appendLog(next);
+                    // 匹配上了，添加并移除缓存；由 store 同步维护总字节预算
+                    historyStore.appendTraceLog(history, next);
                     iterator.remove();
                 }
             }

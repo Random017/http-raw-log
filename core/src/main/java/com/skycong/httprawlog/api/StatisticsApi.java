@@ -53,10 +53,13 @@ public class StatisticsApi implements DisposableBean {
     }
 
 
-    // 四个排序器
-    private static final Comparator<StatisticsData> totalComparatorDesc = Comparator.comparingInt(o -> -1 * o.totalRequestNum);
-    private static final Comparator<StatisticsData> totalComparatorAsc = Comparator.comparingInt(o -> o.totalRequestNum);
-    private static final Comparator<StatisticsData> avgComparatorDesc = Comparator.comparingInt(o -> -1 * o.averageTime);
+    // 四个排序器；total 用 long 取负，避免 int 边界值取负溢出
+    private static final Comparator<StatisticsData> totalComparatorDesc =
+            Comparator.comparingLong(o -> -(long) o.totalRequestNum);
+    private static final Comparator<StatisticsData> totalComparatorAsc =
+            Comparator.comparingInt(o -> o.totalRequestNum);
+    private static final Comparator<StatisticsData> avgComparatorDesc =
+            Comparator.comparingLong(o -> -(long) o.averageTime);
     private static final Comparator<StatisticsData> avgComparatorAsc = Comparator.comparingInt(o -> o.averageTime);
 
     // 统计计算的单线程，长度2000，超过的请求直接丢弃；daemon 线程，避免拖住宿主进程退出
@@ -70,12 +73,12 @@ public class StatisticsApi implements DisposableBean {
      */
     private static final int MAX_URI_KEYS = 1000;
 
-    private static final java.util.regex.Pattern UUID_SEGMENT = java.util.regex.Pattern.compile(
-            "/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)");
-    private static final java.util.regex.Pattern NUMERIC_SEGMENT = java.util.regex.Pattern.compile(
-            "/\\d+(?=/|$)");
-    private static final java.util.regex.Pattern LONG_HEX_SEGMENT = java.util.regex.Pattern.compile(
-            "/[0-9a-fA-F]{16,}(?=/|$)");
+    /**
+     * 单个组合正则：数字、UUID、长十六进制路径参数统一归一化为 {@code {id}}。
+     */
+    private static final java.util.regex.Pattern ID_SEGMENT = java.util.regex.Pattern.compile(
+            "/(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+                    + "|[0-9a-fA-F]{16,}|\\d+)(?=/|$)");
 
     public StatisticsApi() {
         this.executors = new ThreadPoolExecutor(
@@ -104,6 +107,10 @@ public class StatisticsApi implements DisposableBean {
         try {
             executors.execute(() -> map.compute(uri, (key, data) -> {
                 if (data == null) {
+                    // 并发提交时 map.size() 可能已变化，在 compute 内再确认一次，严格限制 URI 基数
+                    if (map.size() >= MAX_URI_KEYS) {
+                        return null;
+                    }
                     data = new StatisticsData(uri);
                     data.totalRequestNum = 1;
                     data.averageTime = time;
@@ -146,9 +153,7 @@ public class StatisticsApi implements DisposableBean {
         if (fragmentIndex >= 0) {
             uri = uri.substring(0, fragmentIndex);
         }
-        uri = UUID_SEGMENT.matcher(uri).replaceAll("/{id}");
-        uri = LONG_HEX_SEGMENT.matcher(uri).replaceAll("/{id}");
-        uri = NUMERIC_SEGMENT.matcher(uri).replaceAll("/{id}");
+        uri = ID_SEGMENT.matcher(uri).replaceAll("/{id}");
         return uri;
     }
 

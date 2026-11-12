@@ -185,6 +185,17 @@ public class ResponseWrapperTest {
     }
 
     /**
+     * 没有响应 body 时不预分配 8KB 捕获缓冲。
+     */
+    @Test
+    void emptyResponse_hasNoPreallocatedCaptureBuffer() {
+        ResponseWrapper wrapper = new ResponseWrapper(new MockHttpServletResponse());
+
+        assertEquals(0, wrapper.getCapturedBuffer().length);
+        assertEquals(0, wrapper.getCapturedLength());
+    }
+
+    /**
      * sendError 应记录状态/消息并清空已写 body，避免把错误页之外的旧内容写进日志。
      */
     @Test

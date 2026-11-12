@@ -1,8 +1,8 @@
 package com.skycong.httprawlog.api;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * <pre>
@@ -26,6 +26,11 @@ import java.util.List;
 public class History implements Serializable {
 
     private static final long serialVersionUID = -805223160856032952L;
+
+    /**
+     * 单条 history 最多保留的链路日志行数，避免长连接/高频日志无限增长
+     */
+    public static final int MAX_TRACE_LOGS = 200;
 
     private String time;
     private String hLogId;
@@ -162,7 +167,18 @@ public class History implements Serializable {
     }
 
     public void appendLog(String log) {
-        if (this.traceLogs == null) this.traceLogs = new ArrayList<>();
+        if (log == null) {
+            return;
+        }
+        if (this.traceLogs == null) {
+            this.traceLogs = new CopyOnWriteArrayList<>();
+        } else if (!(this.traceLogs instanceof CopyOnWriteArrayList)) {
+            // 兼容反序列化/外部注入的普通 List，避免后台追加时与接口序列化并发修改
+            this.traceLogs = new CopyOnWriteArrayList<>(this.traceLogs);
+        }
+        if (this.traceLogs.size() >= MAX_TRACE_LOGS) {
+            return;
+        }
         this.traceLogs.add(log);
     }
 

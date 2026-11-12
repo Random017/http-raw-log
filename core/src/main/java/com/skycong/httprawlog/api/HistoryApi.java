@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -87,7 +86,7 @@ public class HistoryApi implements HistoryRecord {
     }
 
     /**
-     * 按 hLogId 取单条详情；列表只返回摘要，详情再按需读取。
+     * 按 hLogId 取单条详情；列表和详情返回的 body 都已按 {@code maxBodyBytes} 截断。
      *
      * @param hLogId 响应头里的 hLogId
      * @return 单条历史；不存在返回 404
@@ -124,7 +123,19 @@ public class HistoryApi implements HistoryRecord {
 
     //log 打印到控制台上
     public void consoleLog(History history) {
-        StringBuilder sb = new StringBuilder();
+        if (!HttpRawLogFilter.LOGGER.isDebugEnabled()) {
+            return;
+        }
+        // 预分配接近最终长度，避免大 body 反复扩容拷贝；上限 1MB，异常大时再自然增长
+        int responseChars = maxChars > 0
+                ? Math.min(lengthOf(history.getResponseBody()), maxChars)
+                : lengthOf(history.getResponseBody());
+        long estimate = 256L
+                + lengthOf(history.getRequestHeaders())
+                + lengthOf(history.getQueryString())
+                + lengthOf(history.getRequestBody())
+                + responseChars;
+        StringBuilder sb = new StringBuilder((int) Math.min(estimate, 1L << 20));
         sb.append('\n')
                 .append("--------------> http raw data ").append(color1("hLogId:")).append(history.gethLogId()).append("  ").append(history.getCost()).append(" ms").append('\n')
                 .append(color2("[url]")).append(":").append(history.getMethod()).append('\t').append(history.getUrl()).append('\n')
@@ -146,6 +157,10 @@ public class HistoryApi implements HistoryRecord {
         return value != null && !value.isEmpty();
     }
 
+    private static int lengthOf(String value) {
+        return value == null ? 0 : value.length();
+    }
+
     /**
      * 按 UTF-8 字节数截断，避免把多字节字符切成乱码。
      *
@@ -157,16 +172,74 @@ public class HistoryApi implements HistoryRecord {
         if (text == null || maxBodyBytes <= 0) {
             return text;
         }
-        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-        if (bytes.length <= maxBodyBytes) {
+        int textLength = text.length();
+        // UTF-8 每个 UTF-16 code unit 最多 3 字节；满足时可跳过整段编码。
+        if ((long) textLength * 3 <= maxBodyBytes) {
             return text;
         }
-        int end = maxBodyBytes;
-        while (end > 0 && (bytes[end] & 0xC0) == 0x80) {
-            end--;
+        // 纯 ASCII 与字节一一对应，超限时直接按字符截断，避免为大 body 分配 byte[]。
+        if (isAscii(text)) {
+            if (textLength <= maxBodyBytes) {
+                return text;
+            }
+            return text.substring(0, maxBodyBytes) + truncateSuffix(textLength, maxBodyBytes);
         }
-        return new String(bytes, 0, end, StandardCharsets.UTF_8)
-                + "\n... [truncated, total size = " + bytes.length
+
+        // 非 ASCII 时按 code point 扫描，避免为超长 body 再分配一份完整 UTF-8 byte[]
+        long totalBytes = 0;
+        int prefixEnd = 0;
+        boolean prefixComplete = true;
+        for (int i = 0; i < textLength; ) {
+            int codePoint = text.codePointAt(i);
+            int chars = Character.charCount(codePoint);
+            int bytes = utf8Bytes(codePoint);
+            totalBytes += bytes;
+            if (prefixComplete) {
+                if (totalBytes <= maxBodyBytes) {
+                    prefixEnd = i + chars;
+                } else {
+                    prefixComplete = false;
+                }
+            }
+            i += chars;
+        }
+        if (prefixComplete) {
+            return text;
+        }
+        return text.substring(0, prefixEnd) + truncateSuffix(totalBytes, maxBodyBytes);
+    }
+
+    /**
+     * 与 JDK UTF-8 编码器一致的单 code point 字节数；未配对的 surrogate 会被替换成
+     * 单字节 {@code ?}，因此按 1 字节计。
+     */
+    private static int utf8Bytes(int codePoint) {
+        if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+            return 1;
+        }
+        if (codePoint < 0x80) {
+            return 1;
+        }
+        if (codePoint < 0x800) {
+            return 2;
+        }
+        if (codePoint < 0x10000) {
+            return 3;
+        }
+        return 4;
+    }
+
+    private static boolean isAscii(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) > 0x7F) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String truncateSuffix(long totalBytes, int maxBodyBytes) {
+        return "\n... [truncated, total size = " + totalBytes
                 + " bytes > maxBodyBytes=" + maxBodyBytes + "]";
     }
 
