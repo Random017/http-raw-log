@@ -53,6 +53,16 @@ jobs:
           : "${SIGNING_PASSWORD:?SIGNING_PASSWORD repository secret is required}"
           chmod +x gradlew
           ./gradlew --no-daemon :test:test :core:publishAndZip
+          ls -l core/build/http-raw-log-*.zip
+
+      - name: Verify Central credentials
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${CENTRAL_USERNAME:?CENTRAL_USERNAME repository secret is required}"
+          : "${CENTRAL_PASSWORD:?CENTRAL_PASSWORD repository secret is required}"
 
       - name: Publish to Central Portal
         env:

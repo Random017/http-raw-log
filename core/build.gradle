@@ -9,6 +9,7 @@ import java.time.Duration
 import java.util.Base64
 import java.util.Locale
 import java.util.zip.ZipFile
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
 apply plugin: 'maven-publish'
 
@@ -147,33 +148,51 @@ def isReleaseVersion(version) {
  * 打包并发布到本地 Maven 仓库，然后将 com 目录打成 zip
  * 用法: ./gradlew :core:publishAndZip
  */
+// 只清理上一次的发布目录和 bundle。不要用 clean 作为 publish 的兄弟依赖：
+// clean 与 publish 之间没有顺序约束，Gradle 可能先 publish 再 clean，
+// 导致 build/repo 被删掉、zip 静默不生成（CI 上已实际出现过）。
+tasks.register('cleanPublishRepo', Delete) {
+    delete layout.buildDirectory.dir('repo')
+    delete layout.buildDirectory.file("http-raw-log-${project.version}.zip")
+}
+
+tasks.withType(PublishToMavenRepository).configureEach {
+    dependsOn 'cleanPublishRepo'
+}
+
 task publishAndZip {
-    description = 'Clean, publish to local repo, then zip the com directory for Maven Central upload'
+    description = 'Publish to the local build/repo and zip it for Maven Central upload'
     group = 'publishing'
 
-    dependsOn 'clean', 'publish'
+    dependsOn 'publish'
 
     doLast {
-        // 将 build/repo/com 目录打成 zip
+        // 将 build/repo 目录打成 zip
         def repoDir = layout.buildDirectory.dir('repo').get().asFile
         def zipFile = layout.buildDirectory.file("http-raw-log-${project.version}.zip").get().asFile
 
-        if (repoDir.exists()) {
-            def signedFiles = fileTree(repoDir).matching { include '**/*.asc' }.files
-            ant.zip(destfile: zipFile) {
-                fileset(dir: repoDir)
-            }
-            if (signedFiles.isEmpty()) {
-                println "⚠️ 未生成 .asc：Maven Central 会拒绝该 zip；请配置 ~/.gradle/gradle.properties 的 signing.*，" +
-                        "或设置 SIGNING_KEY/SIGNING_PASSWORD 后重试"
-            } else {
-                println "🔏 已生成 ${signedFiles.size()} 个签名文件"
-            }
-            println "✅ ZIP 已生成: ${zipFile.absolutePath}"
-            println "📦 可使用 :core:publishToCentralPortal 上传，或手动上传到 https://central.sonatype.com/publish"
-        } else {
-            println "❌ 目录不存在: ${repoDir.absolutePath}"
+        if (!repoDir.isDirectory()) {
+            throw new GradleException("发布目录不存在: ${repoDir.absolutePath}；publish 未产出构件")
         }
+
+        def signedFiles = fileTree(repoDir).matching { include '**/*.asc' }.files
+        if (!signedFiles.isEmpty() && signedFiles.size() < 5) {
+            throw new GradleException("只生成了 ${signedFiles.size()} 个 .asc，Maven Central 需要 5 个")
+        }
+        ant.zip(destfile: zipFile) {
+            fileset(dir: repoDir)
+        }
+        if (!zipFile.isFile() || zipFile.length() == 0L) {
+            throw new GradleException("zip 生成失败: ${zipFile.absolutePath}")
+        }
+        if (signedFiles.isEmpty()) {
+            println "⚠️ 未生成 .asc：Maven Central 会拒绝该 zip；请配置 ~/.gradle/gradle.properties 的 signing.*，" +
+                    "或设置 SIGNING_KEY/SIGNING_PASSWORD 后重试"
+        } else {
+            println "🔏 已生成 ${signedFiles.size()} 个签名文件"
+        }
+        println "✅ ZIP 已生成: ${zipFile.absolutePath}"
+        println "📦 可使用 :core:publishToCentralPortal 上传，或手动上传到 https://central.sonatype.com/publish"
     }
 }
 
