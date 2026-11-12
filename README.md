@@ -157,6 +157,7 @@ SIGNING_KEY="$(cat private.pgp)" SIGNING_PASSWORD='***' ./gradlew :core:publishA
 ```
 
 - `publishAndZip` 的产物位于 `core/build/http-raw-log-<version>.zip`，正常会生成 5 个 `.asc`；可用 `:core:publishToCentralPortal` 自动上传，也可手动上传到 <https://central.sonatype.com/publish>。
+- `publishAndZip` 会先清理 `core/build/repo` 和旧 zip，再重新发布；不要把它与 `clean` 并列执行（Gradle 不保证两者顺序）。需要全新构建时先单独执行 `:core:clean`。
 - `publishToCentralPortal` 不会重新构建，直接上传 `core/build/http-raw-log-<version>.zip`；zip 不存在时先执行 `:core:publishAndZip`。上传前会检查 zip 内至少有 5 个 `.asc`，没有签名会直接失败。
 - 凭据也可用同名环境变量 `CENTRAL_USERNAME` / `CENTRAL_PASSWORD`；`publishingType` 可用 `-PcentralPublishingType=USER_MANAGED|AUTOMATIC` 或 `CENTRAL_PUBLISHING_TYPE` 覆盖。
 - 本机签名使用 Gradle `signing` 插件的标准属性 `signing.keyId`/`signing.password`/`signing.secretKeyRingFile`，配置一次即可；CI 继续使用 `SIGNING_KEY`/`SIGNING_PASSWORD`，也可用 `-PsigningKey/-PsigningPassword`。
@@ -197,9 +198,10 @@ gpg --verify http-raw-log-1.1.1.jar.asc http-raw-log-1.1.1.jar
 推送 `v*` tag 后，[release.yml](.github/workflows/release.yml) 会：
 
 1. 校验 tag 与 `gradle.properties` 版本一致（SNAPSHOT 直接拒绝）；
-2. 跑全量测试，生成带 5 个 `.asc` 的 zip；
-3. 调用 `:core:publishToCentralPortal` 上传并轮询状态；
-4. 校验通过后按模式继续。
+2. 跑全量测试，生成带 5 个 `.asc` 的 zip，并校验 zip 路径存在；
+3. 单独校验 `CENTRAL_USERNAME` / `CENTRAL_PASSWORD` 两个 secret；
+4. 调用 `:core:publishToCentralPortal` 上传并轮询状态；
+5. 校验通过后按模式继续。
 
 仓库 Secrets：
 
@@ -230,6 +232,7 @@ User Token 在 <https://central.sonatype.com/account> 生成。首次建议用 `
 - **文件追踪更快**：未配置 txId 函数时只推进文件位置，不再逐行解码/缓存；ASCII 日志行跳过二次编码
 - **统计归一化收敛**：数字/UUID/长十六进制合并为单次正则替换，统计 key 严格封顶，排序避免装箱和溢出
 - **可复现构建**：归档固定文件顺序与时间戳，同一源码连续两次 clean build 的 core jar SHA-256 一致
+- **发布流水线修复**：`publishAndZip` 不再把 `clean` 作为 `publish` 的无序兄弟依赖，避免 CI 上静默缺少 zip；Release 增加 zip 和 Central 凭据校验
 
 #### v1.1.0
 
